@@ -1,0 +1,59 @@
+# Institution profile — everything that ties the tool to one organisation.
+# Point INSTITUTION_PROFILE at a copy of this file. Without a profile the
+# institution mode is not offered. All values below are fictional.
+
+[institution]
+name = "Example University"
+short_name = "EU"
+# First entry = primary domain (used for site: filters). Subdomains match.
+domains = ["example.edu"]
+# Phrases that indicate the institution in search terms (case-insensitive).
+keywords = ["Example University", "EU Example"]
+# OpenAlex institution ID; enables author/topic look-ups restricted to the
+# institution. Leave empty to disable.
+openalex_id = ""
+# Sent in the User-Agent to Crossref and OpenAlex ("polite pool").
+contact_email = "research-tool@example.edu"
+# Domains never used as sources, e.g. sites that share the institution's
+# abbreviation and would otherwise pollute its searches.
+blocked_domains = []
+# Printed in report footers. TOOL_PUBLIC_URL overrides it.
+tool_url = "https://tools.example.edu/research/"
+# First line of the chat assistant's system prompt.
+assistant_role = "You are the research assistant of Example University."
+
+# Institution-specific planning rules, inserted into the planner prompt of
+# the institution mode. The prompts are English; write the rules in English
+# (other languages work, but mixed-language prompts are less predictable).
+planner_guidelines = """
+THE INSTITUTION'S WEB PAGES:
+   Proactively add relevant pages as direct_urls:
+   - Faculties and institutes: https://www.example.edu/faculties/
+   - Library: https://library.example.edu/
+   - Governance: https://governance.example.edu/
+     Include them when the research concerns a specific person, position or
+     unit.
+
+RESEARCH ON PEOPLE:
+   Besides position, institute, contact and publications, the plan should always
+   contain a question about committee work.
+"""
+
+[person_directory]
+name = "Staff directory"
+# {pid} is replaced by the person id from the directory database.
+profile_url = "https://www.example.edu/people?pid={pid}"
+# Extra guidance for when to query the directory (optional).
+planner_hint = ""
+
+[[footer_links]]
+label = "Contact"
+url = "mailto:research-tool@example.edu"
+
+[[footer_links]]
+label = "Imprint"
+url = "https://www.example.edu/imprint"
+
+[[footer_links]]
+label = "Privacy"
+url = "https://www.example.edu/privacy"

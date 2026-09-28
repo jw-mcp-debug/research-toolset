@@ -1,0 +1,21 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["examples"]
+
+[tool.ruff.lint]
+# Pyflakes (F) and syntax errors (E9): the checks that find real bugs.
+# Style rules are deliberately not enforced on the existing code.
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# Package entry points re-export names.
+"__init__.py" = ["F401"]
+# Tests import modules for their side effects (stubs, registries).
+"tests/conftest.py" = ["F401"]

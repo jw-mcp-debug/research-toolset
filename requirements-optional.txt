@@ -1,0 +1,10 @@
+# Optional extras, not covered by the test suite.
+
+# Legacy Office formats (.doc, .ppt, .xls). Without it, uploading such a
+# file fails with a clear message; all other formats work.
+# .doc additionally needs LibreOffice on the host.
+unstructured[doc,ppt,xlsx]>=0.27,<0.28
+
+# JavaScript rendering fallback for the web scraper (USE_PLAYWRIGHT=true).
+# After installing, run:  playwright install chromium
+playwright>=1.63,<2

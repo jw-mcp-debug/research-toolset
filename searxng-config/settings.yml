@@ -1,0 +1,109 @@
+use_default_settings: true
+
+general:
+  instance_name: "research-toolset"
+  debug: false
+  enable_metrics: false
+
+search:
+  safe_search: 2          # 0=off, 1=moderate, 2=strict
+  autocomplete: ""
+  default_lang: "all"     # no language restriction — multilingual search
+  formats:
+    - html
+    - json        # IMPORTANT: JSON API for programmatic access
+
+server:
+  limiter: false  # no rate limiting (local use by the tool only)
+  image_proxy: false
+  secret_key: "change-me"   # REQUIRED: set a random value, or the SEARXNG_SECRET environment variable
+  method: "GET"
+
+redis:
+  url: "redis://redis:6379/0"
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  results_on_new_tab: false
+
+# Search engine configuration
+engines:
+  # --- Web search ---
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+
+  - name: brave
+    engine: brave
+    shortcut: br
+    disabled: false
+
+  - name: startpage
+    engine: startpage
+    shortcut: sp
+    disabled: false
+
+  # --- IT / Code ---
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+
+  # --- Scholarly ---
+  - name: arxiv
+    engine: arxiv
+    shortcut: ar
+    disabled: false
+
+  - name: google scholar
+    engine: google_scholar
+    shortcut: gs
+    disabled: false
+
+  - name: semantic scholar
+    engine: semantic_scholar
+    shortcut: ss
+    disabled: false
+
+  - name: openalex
+    engine: openalex
+    shortcut: oa
+    disabled: false
+    timeout: 10.0
+    # mailto: "you@example.org"  # optional, for the polite pool
+
+  - name: crossref
+    engine: crossref
+    shortcut: cr
+    disabled: false
+    timeout: 10.0
+  # --- Disabled (not relevant for research) ---
+  - name: 9gag
+    disabled: true
+  - name: flickr
+    disabled: true
+  - name: unsplash
+    disabled: true
+  - name: soundcloud
+    disabled: true
+  - name: bandcamp
+    disabled: true
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
