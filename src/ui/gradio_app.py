@@ -868,7 +868,7 @@ async def _drive_research_pipeline(
             f"- {ctx.rounds_completed} Recherche-Runden\n"
             f"{search_langs_info}"
             f"- Dauer: {ctx.duration_seconds:.0f} Sekunden\n\n"
-            f"*Das Ergebnis steht rechts im Tab „Bericht“; dort gibt es auch den Word-Export →*"
+            f"*Das Ergebnis steht rechts im Tab „Bericht“, der Export oben im Ergebnisbereich →*"
         )
         chatbot_new.append({"role": "assistant", "content": summary_msg})
         app_state.chat_history.append(
@@ -1356,7 +1356,7 @@ async def run_explainer_pipeline(
     if pipeline_error:
         final_report = (
             f"❌ **Fehler:** {pipeline_error}\n\n"
-            f"Details im Tab „Fortschritt“."
+            f"Details im Tab „Verlauf“."
         )
         ChatState(chatbot).replace_last_assistant(
             f"❌ Fehler in der vertieften Erklärung: {pipeline_error}",
@@ -1475,7 +1475,7 @@ async def _drive_analysis_execution(
 
     if pipeline_error:
         final_report = (
-            f"❌ **Fehler:** {pipeline_error}\n\nDetails im Tab „Fortschritt“."
+            f"❌ **Fehler:** {pipeline_error}\n\nDetails im Tab „Verlauf“."
         )
         ChatState(chatbot).replace_last_assistant(
             f"❌ Fehler in {label}: {pipeline_error}",
@@ -2352,7 +2352,7 @@ async def run_literature_check(app_state: AppState, msg: dict, chatbot: list,
         f"- {report_data.with_deviations} mit Abweichungen ⚠️",
         f"- {report_data.not_found} nicht gefunden ❌",
         "",
-        "*Das Ergebnis steht rechts im Tab „Bericht“. Der Export ist links verfügbar.*",
+        "*Das Ergebnis steht rechts im Tab „Bericht“, der Export oben im Ergebnisbereich.*",
     ])
     summary = "\n".join(summary_lines)
     chatbot = list(chatbot[:-1])
@@ -2957,7 +2957,11 @@ def export_bibtex(app_state: AppState):
 # Gradio App
 # =====================================================================
 
+# One accent colour (blue) for primary button, checkboxes and links;
+# medium radii everywhere.
 APP_THEME = gr.themes.Default(
+    primary_hue="blue",
+    radius_size="md",
     font=["ui-sans-serif", "sans-serif"],
     font_mono=["ui-monospace", "monospace"],
 )
@@ -2982,6 +2986,14 @@ def _footer_markdown() -> str:
     if not links:
         return ""
     return "---\n" + " |\n".join(f"[{l.label}]({l.url})" for l in links)
+
+
+def _export_to_file(export_fn):
+    """Wrap an export so the download field only shows when there is a file."""
+    def _run(app_state: AppState):
+        path = export_fn(app_state)
+        return gr.update(value=path, visible=bool(path))
+    return _run
 
 
 def create_app(config: AppConfig = None) -> gr.Blocks:
@@ -3025,14 +3037,22 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # =============================================================
         # HEADER
         # =============================================================
+        # Labelled buttons instead of bare symbols; "Neuer Chat" lives only
+        # here (it used to appear in the sidebar and below the input too).
         with gr.Row(elem_id="app-header"):
-            sidebar_toggle = gr.Button("☰", elem_id="sidebar-toggle",
-                                       size="sm", min_width=36, scale=0)
+            sidebar_toggle = gr.Button("☰ Dokumente", elem_id="sidebar-toggle",
+                                       elem_classes=["header-btn"],
+                                       scale=0, min_width=0)
             gr.Markdown(f"**🔍 {TOOL_NAME}**", elem_id="header-title")
-            result_toggle = gr.Button("📊", elem_id="result-toggle",
-                                      size="sm", min_width=36, scale=0)
+            new_chat_btn = gr.Button("✨ Neuer Chat", elem_id="new-chat-btn",
+                                     elem_classes=["header-btn"],
+                                     scale=0, min_width=0)
+            result_toggle = gr.Button("📊 Ergebnis", elem_id="result-toggle",
+                                      elem_classes=["header-btn"],
+                                      scale=0, min_width=0)
             dark_mode_btn = gr.Button("🌙", elem_id="dark-mode-toggle",
-                                      size="sm", min_width=36, scale=0)
+                                      elem_classes=["header-btn"],
+                                      scale=0, min_width=0)
 
         # =============================================================
         # MAIN LAYOUT
@@ -3042,10 +3062,6 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             # ─── SIDEBAR (links) ────────────────────────────────────
             with gr.Column(scale=0, min_width=240, visible=False,
                            elem_id="sidebar-column") as sidebar:
-
-                new_chat_btn = gr.Button("✨ Neuer Chat", size="sm",
-                                         variant="secondary")
-                gr.Markdown("---")
 
                 gr.Markdown("📁 **DOKUMENTE**", elem_classes=["section-label"])
                 doc_list_display = gr.HTML(
@@ -3061,13 +3077,6 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                                 ".html", ".htm", ".csv", ".py",
                                 ".xlsx", ".xls", ".pptx", ".ppt", ".rtf"],
                     elem_id="sidebar-upload", height=80,
-                )
-
-                gr.Markdown("---")
-                gr.Markdown("📥 **EXPORT**", elem_classes=["section-label"])
-                gr.Markdown(
-                    "<p style='color: var(--body-text-color-subdued); font-size: 0.8rem;'>"
-                    "Die Exportoptionen erscheinen unter dem Bericht.</p>"
                 )
 
             # ─── CHAT AREA (middle) ──────────────────────────────
@@ -3087,77 +3096,112 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                         {"left": "$", "right": "$", "display": False},
                     ],
                     autoscroll=False,
-                    height="calc(100vh - 320px)",
+                    height="calc(100vh - 280px)",
                     elem_id="chatbot",
                     placeholder="Was möchten Sie recherchieren?",
                 )
 
-                # Input line
-                with gr.Row(elem_id="input-row"):
+                # ─── Input card: text field + toolbar ──────────────
+                # One block instead of three loose rows. Left: mode and
+                # options; right: discuss (subtle) and start (the only
+                # accent button). Enter in the text field still sends to
+                # the chat; the field's own arrow is dropped because it
+                # duplicated "Auftrag besprechen".
+                with gr.Column(elem_id="composer"):
                     message_input = gr.MultimodalTextbox(
                         placeholder="Was möchten Sie recherchieren?",
                         file_types=[".pdf", ".docx", ".txt", ".md", ".html",
                                     ".csv", ".py"],
                         show_label=False,
                         lines=1, max_lines=12,
-                        scale=4,
+                        submit_btn=False,
                         elem_id="message-input",
                     )
 
-                # Action buttons
-                with gr.Row(elem_id="action-row"):
-                    send_btn = gr.Button("💬 Auftrag besprechen",
-                                         variant="secondary", size="sm",
-                                         scale=1, elem_id="send-btn")
-                    research_mode = gr.Dropdown(
-                        # (label, stable ID): the component value is the ID.
-                        choices=mode_choices(),
-                        value=DEFAULT_RESEARCH_MODE,
-                        label="",
-                        show_label=False,
-                        scale=1,
-                        min_width=160,
-                        elem_id="research-mode",
-                    )
-                    institution_only_checkbox = gr.Checkbox(
-                        label=f"Nur {get_profile().label}" if get_profile().configured else "Nur Einrichtung",
-                        value=False,
-                        visible=False,
-                        scale=0,
-                        min_width=80,
-                        elem_id="institution-only-checkbox",
-                    )
-                    academic_only_checkbox = gr.Checkbox(
-                        label="🎓 Nur wissenschaftliche Literatur",
-                        value=False,
-                        visible=False,
-                        scale=0,
-                        min_width=140,
-                        elem_id="academic-only-checkbox",
-                    )
-                    show_gate_checkbox = gr.Checkbox(
-                        label="📋 Plan bestätigen",
-                        value=False,
-                        visible=True,
-                        scale=0,
-                        min_width=140,
-                        elem_id="show-gate-checkbox",
-                    )
-                    start_btn = gr.Button("🔍 Recherche starten",
-                                          variant="primary", size="sm",
-                                          scale=1, min_width=140,
-                                          elem_id="research-btn")
-                    stop_btn = gr.Button("⏹️ Stopp", variant="stop",
-                                         size="sm", scale=0, min_width=80,
-                                         visible=False, elem_id="stop-btn")
-                    # Invisible button for chat adoption (triggered via JS);
-                    # visible=True + CSS display:none so that it stays in the DOM
-                    adopt_btn = gr.Button("adopt", size="sm",
-                                          elem_id="adopt-btn",
-                                          elem_classes=["hidden-btn"])
-                    litcheck_mode_btn = gr.Button("litcheck", size="sm",
-                                                  elem_id="litcheck-mode-btn",
-                                                  elem_classes=["hidden-btn"])
+                    with gr.Row(elem_id="composer-toolbar"):
+                        research_mode = gr.Dropdown(
+                            # (label, stable ID): the component value is the ID.
+                            choices=mode_choices(),
+                            value=DEFAULT_RESEARCH_MODE,
+                            label="",
+                            show_label=False,
+                            scale=0,
+                            min_width=200,
+                            elem_id="research-mode",
+                        )
+                        # Opens/closes the options row below purely in the
+                        # browser (see options_btn.click further down).
+                        options_btn = gr.Button("⚙️ Optionen", scale=0,
+                                                min_width=0,
+                                                elem_id="options-btn")
+                        # Own row so the two actions wrap together on
+                        # narrow screens.
+                        with gr.Row(elem_id="composer-actions"):
+                            # Label kept: the chat prompt and the clickable
+                            # chat actions refer to it by this name.
+                            send_btn = gr.Button("💬 Auftrag besprechen",
+                                                 variant="secondary",
+                                                 scale=0, min_width=0,
+                                                 elem_id="send-btn")
+                            start_btn = gr.Button("🔍 Recherche starten",
+                                                  variant="primary",
+                                                  scale=0, min_width=0,
+                                                  elem_id="research-btn")
+                            stop_btn = gr.Button("⏹️ Stopp", variant="stop",
+                                                 scale=0, min_width=0,
+                                                 visible=False,
+                                                 elem_id="stop-btn")
+                        # Invisible button for chat adoption (triggered via JS);
+                        # visible=True + CSS display:none so that it stays in the DOM
+                        adopt_btn = gr.Button("adopt", size="sm",
+                                              elem_id="adopt-btn",
+                                              elem_classes=["hidden-btn"])
+                        litcheck_mode_btn = gr.Button("litcheck", size="sm",
+                                                      elem_id="litcheck-mode-btn",
+                                                      elem_classes=["hidden-btn"])
+
+                    # Collapsed by default; _on_mode_change shows only the
+                    # options that apply to the selected mode.
+                    with gr.Row(elem_id="options-panel"):
+                        template_selector = gr.Dropdown(
+                            choices=template_choices(),
+                            value=DEFAULT_TEMPLATE,
+                            label="Berichtsvorlage",
+                            scale=1,
+                            min_width=200,
+                            elem_id="template-selector",
+                        )
+                        # Report language: only offered when the installation
+                        # enables more than one (OUTPUT_LANGUAGES).
+                        output_language_selector = gr.Dropdown(
+                            choices=language_choices(),
+                            value=default_language(),
+                            label="Berichtssprache",
+                            scale=0,
+                            min_width=150,
+                            visible=len(language_choices()) > 1,
+                            elem_id="output-language",
+                        )
+                        with gr.Column(scale=1, min_width=220,
+                                       elem_id="options-checks"):
+                            institution_only_checkbox = gr.Checkbox(
+                                label=f"Nur {get_profile().label}" if get_profile().configured else "Nur Einrichtung",
+                                value=False,
+                                visible=False,
+                                elem_id="institution-only-checkbox",
+                            )
+                            academic_only_checkbox = gr.Checkbox(
+                                label="🎓 Nur wissenschaftliche Literatur",
+                                value=False,
+                                visible=True,
+                                elem_id="academic-only-checkbox",
+                            )
+                            show_gate_checkbox = gr.Checkbox(
+                                label="📋 Plan vor dem Start bestätigen",
+                                value=False,
+                                visible=True,
+                                elem_id="show-gate-checkbox",
+                            )
 
                 # ─── Plan preview gate ─────────────────────────────
                 # Becomes visible when the analysis handler has produced a
@@ -3293,54 +3337,6 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                     analysis_components_flat.extend(_comps)
                     analysis_autofill_btns[uc_name] = (_autofill_btn, _comps)
 
-                # Template + new chat
-                with gr.Row(elem_id="template-chips"):
-                    template_selector = gr.Dropdown(
-                        choices=template_choices(),
-                        value=DEFAULT_TEMPLATE,
-                        label="",
-                        show_label=False,
-                        scale=1,
-                        min_width=200,
-                    )
-                    # Report language: only offered when the installation
-                    # enables more than one (OUTPUT_LANGUAGES).
-                    output_language_selector = gr.Dropdown(
-                        choices=language_choices(),
-                        value=default_language(),
-                        label="Berichtssprache",
-                        scale=0,
-                        min_width=150,
-                        visible=len(language_choices()) > 1,
-                        elem_id="output-language",
-                    )
-                    new_chat_main_btn = gr.Button("✨ Neuer Chat", size="sm",
-                                                  variant="secondary")
-
-                # Export
-                with gr.Row(elem_id="export-row"):
-                    word_export_btn = gr.Button(
-                        "📄 Word-Export", size="sm",
-                        variant="secondary", scale=1,
-                        min_width=100,
-                    )
-                    md_export_btn = gr.Button(
-                        "📝 Markdown", size="sm",
-                        variant="secondary", scale=1,
-                        min_width=100,
-                    )
-                    bib_export_btn = gr.Button(
-                        "📚 BibTeX", size="sm",
-                        variant="secondary", scale=1,
-                        min_width=100,
-                    )
-                export_file = gr.File(
-                    label="Download",
-                    visible=True,
-                    interactive=False,
-                    elem_id="export-file",
-                )
-
                 # Fixed chat system prompt; not editable in the UI. The
                 # {date} placeholder is filled per message by the handlers.
                 system_prompt = gr.State(SYSTEM_PROMPT_CHAT)
@@ -3348,6 +3344,30 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             # ─── RESULT PANEL (right) ───────────────────────────
             with gr.Column(scale=2, visible=False,
                            elem_id="result-panel") as result_panel:
+
+                # Export belongs to the report, so it sits in the panel
+                # header. The download field only appears once a file
+                # exists (see _export_to_file).
+                with gr.Row(elem_id="result-header"):
+                    gr.Markdown("**Ergebnis**", elem_id="result-title")
+                    word_export_btn = gr.Button(
+                        "📄 Word", elem_classes=["export-btn"],
+                        scale=0, min_width=0,
+                    )
+                    md_export_btn = gr.Button(
+                        "📝 Markdown", elem_classes=["export-btn"],
+                        scale=0, min_width=0,
+                    )
+                    bib_export_btn = gr.Button(
+                        "📚 BibTeX", elem_classes=["export-btn"],
+                        scale=0, min_width=0,
+                    )
+                export_file = gr.File(
+                    label="Download",
+                    visible=False,
+                    interactive=False,
+                    elem_id="export-file",
+                )
 
                 with gr.Tabs():
                     with gr.TabItem("📄 Bericht"):
@@ -3362,32 +3382,37 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                             elem_id="sources-display",
                         )
 
-                    with gr.TabItem("📊 Fortschritt"):
-                        progress_display = gr.Markdown(
-                            value="*Warten auf den Start der Recherche ...*",
-                            elem_id="progress-display",
-                        )
+                    # Progress, extracts and pipeline run are mostly
+                    # needed for troubleshooting, so they share one tab.
+                    with gr.TabItem("🧭 Verlauf", elem_id="history-tab"):
+                        with gr.Accordion("📊 Fortschritt", open=True):
+                            progress_display = gr.Markdown(
+                                value="*Warten auf den Start der Recherche ...*",
+                                elem_id="progress-display",
+                            )
 
-                    with gr.TabItem("📝 Extrakte"):
-                        extracts_display = gr.Markdown(
-                            value="*Noch keine Extrakte.*",
-                            elem_id="extracts-display",
-                        )
+                        with gr.Accordion("📝 Extrakte", open=False):
+                            extracts_display = gr.Markdown(
+                                value="*Noch keine Extrakte.*",
+                                elem_id="extracts-display",
+                            )
 
-                    with gr.TabItem("🧠 Pipeline-Lauf") as pipeline_run_tab:
-                        # Makes the DAG plan and all intermediate structures
-                        # transparent: output schema, research plan,
-                        # classifier results, coverage per question,
-                        # filter statistics, synthesis map answers,
-                        # diagnosis, quality and fulfilment check,
-                        # report revision, factoid verification,
-                        # classifier calls. Updates itself when
-                        # app_state.current_research changes (via a
-                        # .change() handler further down).
-                        pipeline_run_display = gr.Markdown(
-                            value="*Noch keine Recherche gestartet.*",
-                            elem_id="pipeline-run-display",
-                        )
+                        with gr.Accordion("🧠 Pipeline-Lauf",
+                                          open=False) as pipeline_run_acc:
+                            # Makes the DAG plan and all intermediate
+                            # structures transparent: output schema,
+                            # research plan, classifier results, coverage
+                            # per question, filter statistics, synthesis
+                            # map answers, diagnosis, quality and
+                            # fulfilment check, report revision, factoid
+                            # verification, classifier calls. Updates
+                            # itself when app_state.current_research
+                            # changes (via a .change() handler further
+                            # down).
+                            pipeline_run_display = gr.Markdown(
+                                value="*Noch keine Recherche gestartet.*",
+                                elem_id="pipeline-run-display",
+                            )
 
         # =============================================================
         # FOOTER
@@ -3557,10 +3582,10 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=[pipeline_run_display],
             queue=False,
         )
-        # Also render when the tab is opened: the last progress update of a
-        # run can come before the run is stored in the session state, and
-        # then no further change event follows.
-        pipeline_run_tab.select(
+        # Also render when the section is opened: the last progress update
+        # of a run can come before the run is stored in the session state,
+        # and then no further change event follows.
+        pipeline_run_acc.expand(
             _refresh_pipeline_run,
             inputs=[app_state],
             outputs=[pipeline_run_display],
@@ -3582,6 +3607,12 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             # in-depth explanation and the analysis modes do not need it
             # (they have their own, specific source logic).
             show_academic = is_web or is_institution
+            # The plan preview exists for web/institution research and the
+            # analysis modes, not for the explanation or literature check.
+            show_gate = is_web or is_institution or selected_uc is not None
+            # "Optionen" only makes sense if the panel has something in it.
+            has_options = (template_visible or show_academic or show_gate
+                           or len(language_choices()) > 1)
             # Panel updates in the same order as ANALYSIS_USE_CASE_ORDER
             panel_updates = tuple(
                 gr.update(visible=selected_uc == uc)
@@ -3590,6 +3621,8 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             return (
                 gr.update(visible=is_institution),                # hu_only_checkbox
                 gr.update(visible=show_academic),        # academic_only_checkbox
+                gr.update(visible=show_gate),            # show_gate_checkbox
+                gr.update(visible=has_options),          # options_btn
                 gr.update(visible=is_explainer),         # explainer_panel
                 gr.update(visible=template_visible),     # template_selector
                 *panel_updates,
@@ -3617,9 +3650,18 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             inputs=[research_mode],
             outputs=[
                 institution_only_checkbox, academic_only_checkbox,
+                show_gate_checkbox, options_btn,
                 explainer_panel, template_selector,
                 *[analysis_panels[uc] for uc in ANALYSIS_USE_CASE_ORDER],
             ],
+            queue=False,
+        )
+
+        # Options row: toggled in the browser only. The flag sits on
+        # <body> because Gradio re-renders its own elements' classes.
+        options_btn.click(
+            None,
+            js="() => { document.body.toggleAttribute('data-options-open'); }",
             queue=False,
         )
 
@@ -3720,18 +3762,17 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         )
 
         # New chat
-        for btn in [new_chat_btn, new_chat_main_btn]:
-            btn.click(
-                new_chat,
-                inputs=[app_state],
-                outputs=[app_state, chatbot],
-                queue=False,
-            ).then(
-                save_chat_to_browser,
-                inputs=[chatbot, app_state],
-                outputs=[chat_store],
-                queue=False,
-            )
+        new_chat_btn.click(
+            new_chat,
+            inputs=[app_state],
+            outputs=[app_state, chatbot],
+            queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
+            queue=False,
+        )
 
         # --- Adopt suggestion (cleaned up by the LLM) ---
         adopt_btn.click(
@@ -3774,14 +3815,14 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # Exports — queue=False so that they react immediately,
         # even while a generator is still in the queue
         md_export_btn.click(
-            export_markdown,
+            _export_to_file(export_markdown),
             inputs=[app_state],
             outputs=[export_file],
             queue=False,
         )
 
         word_export_btn.click(
-            export_word,
+            _export_to_file(export_word),
             inputs=[app_state],
             outputs=[export_file],
             queue=False,
@@ -3800,7 +3841,7 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             )
 
         bib_export_btn.click(
-            export_bibtex,
+            _export_to_file(export_bibtex),
             inputs=[app_state],
             outputs=[export_file],
             queue=False,
