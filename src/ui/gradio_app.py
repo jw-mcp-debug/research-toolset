@@ -50,10 +50,15 @@ logger = logging.getLogger(__name__)
 # (single source of truth); they must not be written out a second
 # time here.
 from src.ui.research_modes import (  # noqa: E402
+    ANALYSIS_GROUP,
     ANALYSIS_MODE_MAP,
     ANALYSIS_USE_CASE_ORDER,
+    DEFAULT_ANALYSIS_MODE,
     DEFAULT_RESEARCH_MODE,
-    mode_choices,
+    analysis_mode_choices,
+    compose_mode,
+    mode_description,
+    mode_group_choices,
     resolve_research_route,
 )
 
@@ -2410,48 +2415,11 @@ def _welcome_message() -> dict:
         "role": "assistant",
         "content": (
             f"👋 Willkommen bei **{TOOL_NAME}**\n\n"
-            "Wählen Sie unten einen Modus, geben Sie Ihre Anfrage ein "
-            "und klicken Sie auf **🔍 Recherche starten**. Für eine Webrecherche "
-            "können Sie Ihren Auftrag vorher mit mir über **💬 Auftrag besprechen** "
-            "schärfen.\n\n"
-            "---\n\n"
-            "### 🔎 Recherchemodi\n\n"
-            "**🌐 Webrecherche** — allgemeine Onlinesuche mit einer autonomen "
-            "Pipeline. Liefert einen Bericht mit Quellenangaben. Geeignet für "
-            "aktuelle Themen, Marktinformationen und Allgemeinwissen.\n\n"
-            + _institution_help_text() +
-            "**📚 Literaturprüfung** — prüft vorhandene Literaturverzeichnisse "
-            "Eintrag für Eintrag gegen CrossRef, OpenAlex und weitere "
-            "Datenbanken. Findet Fehler und ergänzt DOIs. Geeignet vor der "
-            "Einreichung eines Manuskripts.\n\n"
-            "**📑 Literatursuche** — durchsucht OpenAlex, Semantic Scholar "
-            "und arXiv zu Ihrer Forschungsfrage, bewertet die Treffer anhand "
-            "von Einschlusskriterien und listet die Auswahl mit vollständigen "
-            "bibliografischen Angaben. Geeignet für einen ersten Überblick "
-            "vor einem Literature Review.\n\n"
-            "---\n\n"
-            "### 🧠 Analysemodi\n\n"
-            "**📖 Vertiefte Erklärung** — erklärt ein Thema strukturiert für "
-            "eine bestimmte Zielgruppe. Geeignet für die Vorbereitung von Lehre "
-            "oder den Einstieg in neue Fachgebiete.\n\n"
-            "**🔍 Peer Review** — erstellt ein strukturiertes Gutachten zu "
-            "einem Paper, Aspekt für Aspekt. Geeignet für Reviews für "
-            "Zeitschriften und Konferenzen sowie für Abschlussarbeiten.\n\n"
-            "**⚖️ Entscheidungsanalyse** — strukturierte multikriterielle "
-            "Analyse von 2–8 Optionen anhand Ihrer Kriterien. Geeignet für "
-            "Technologieauswahl und strategische Entscheidungen.\n\n"
-            "**🔬 Forschungsdesign** — entwickelt aus einer Forschungsfrage ein "
-            "methodisches Forschungsdesign: Forschungslücke, Hypothesen, Methode, "
-            "Limitationen. Geeignet für die Projektkonzeption und "
-            "Antragsskizzen.\n\n"
-            "**💰 Drittmittelantrag** — Antragsentwurf mit echter "
-            "Literaturrecherche zum Forschungsstand, Arbeitsplan und "
-            "Kohärenzprüfung. Geeignet für Anträge in der Konzeptphase.\n\n"
-            "**📚 Literature Review** — Literaturübersicht auf Basis einer echten "
-            "Literaturrecherche (mit Citation Chasing, also Vor- und "
-            "Rückwärtssuche über Zitationen): je Leitfrage eine Synthese und "
-            "eine Metasynthese. Geeignet für Kapitel von Abschlussarbeiten "
-            "und Überblicksartikel."
+            "Wählen Sie unten eine Recherche- oder Analyseform, geben Sie "
+            "Ihre Frage ein und klicken Sie auf **🔍 Recherche starten**. "
+            "Was der gewählte Modus tut, steht direkt unter der Eingabe.\n\n"
+            "Mit **💬 Auftrag besprechen** können Sie Ihren Auftrag vorher "
+            "mit mir schärfen."
         ),
     }
 
@@ -2967,25 +2935,21 @@ APP_THEME = gr.themes.Default(
 )
 
 
-def _institution_help_text() -> str:
-    """Help paragraph for the institution mode ('' without a profile)."""
-    prof = get_profile()
-    if not prof.configured:
-        return ""
-    return (
-        f"**🏛️ {prof.label}-Recherche** — konzentriert sich auf Quellen von {prof.name} "
-        f"({prof.directory_name or 'Personenverzeichnis'}, Website-Index, "
-        f"{', '.join(prof.domains)}). Mit der Option *Nur {prof.label}* für rein "
-        f"interne Suchen. Geeignet für Fragen rund um die Einrichtung.\n\n"
-    )
-
-
 def _footer_markdown() -> str:
     """Footer links from the institution profile ('' without links)."""
     links = get_profile().footer_links
     if not links:
         return ""
     return "---\n" + " |\n".join(f"[{l.label}]({l.url})" for l in links)
+
+
+#: Start tiles: (value of the first mode dropdown, title, description).
+_START_TILES = [
+    ("web", "🌐 Webrecherche", "Bericht mit Quellen zu einer Frage"),
+    ("literature_finder", "📑 Literatursuche", "Fachliteratur finden und bewerten"),
+    ("literature_check", "📚 Literaturprüfung", "Literaturverzeichnis prüfen"),
+    (ANALYSIS_GROUP, "🧠 Analyse …", "Erklären, begutachten, planen"),
+]
 
 
 def _export_to_file(export_fn):
@@ -3023,6 +2987,8 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # --- State ---
         app_state = gr.State(init_app_state())
         stored_message = gr.State(None)
+        # Effective mode ID, composed from the two mode dropdowns.
+        research_mode = gr.State(DEFAULT_RESEARCH_MODE)
         # Chat copy in the browser's localStorage (see save_chat_to_browser).
         # Fixed key and secret, otherwise every app restart would orphan it.
         chat_store = gr.BrowserState(
@@ -3101,6 +3067,20 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                     placeholder="Was möchten Sie recherchieren?",
                 )
 
+                # ─── Start tiles ─────────────────────────────────
+                # Entry points that set the mode; hidden via CSS once the
+                # chat has more than the welcome message (see
+                # chatbot.change below). First line = title, second =
+                # short description (styled with ::first-line).
+                start_tiles = []
+                with gr.Row(elem_id="start-tiles"):
+                    for _value, _title, _desc in _START_TILES:
+                        start_tiles.append((_value, gr.Button(
+                            f"{_title}\n{_desc}",
+                            elem_classes=["start-tile"],
+                            scale=1, min_width=150,
+                        )))
+
                 # ─── Input card: text field + toolbar ──────────────
                 # One block instead of three loose rows. Left: mode and
                 # options; right: discuss (subtle) and start (the only
@@ -3119,15 +3099,30 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                     )
 
                     with gr.Row(elem_id="composer-toolbar"):
-                        research_mode = gr.Dropdown(
-                            # (label, stable ID): the component value is the ID.
-                            choices=mode_choices(),
+                        # Two levels: research forms plus "Analyse …",
+                        # which opens a second dropdown with the analysis
+                        # modes. Both feed the effective mode ID in
+                        # `research_mode` (see _on_mode_select).
+                        mode_group = gr.Dropdown(
+                            choices=mode_group_choices(),
                             value=DEFAULT_RESEARCH_MODE,
                             label="",
                             show_label=False,
                             scale=0,
                             min_width=200,
                             elem_id="research-mode",
+                            elem_classes=["mode-select"],
+                        )
+                        analysis_mode = gr.Dropdown(
+                            choices=analysis_mode_choices(),
+                            value=DEFAULT_ANALYSIS_MODE,
+                            label="",
+                            show_label=False,
+                            visible=False,
+                            scale=0,
+                            min_width=200,
+                            elem_id="analysis-mode",
+                            elem_classes=["mode-select"],
                         )
                         # Opens/closes the options row below purely in the
                         # browser (see options_btn.click further down).
@@ -3159,6 +3154,13 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                         litcheck_mode_btn = gr.Button("litcheck", size="sm",
                                                       elem_id="litcheck-mode-btn",
                                                       elem_classes=["hidden-btn"])
+
+                    # What the selected mode does (replaces the long list
+                    # of modes that used to be in the welcome message).
+                    mode_hint = gr.Markdown(
+                        mode_description(DEFAULT_RESEARCH_MODE),
+                        elem_id="mode-hint",
+                    )
 
                     # Collapsed by default; _on_mode_change shows only the
                     # options that apply to the selected mode.
@@ -3640,21 +3642,59 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=[app_state], queue=False,
         )
 
+        # Sets research_mode directly as well: the chat link starts the
+        # check 600 ms later and must not wait for the dropdown's change
+        # event.
         litcheck_mode_btn.click(
-            lambda: gr.update(value="literature_check"),
-            inputs=None, outputs=[research_mode], queue=False,
+            lambda: (gr.update(value="literature_check"), "literature_check"),
+            inputs=None, outputs=[mode_group, research_mode], queue=False,
         )
 
-        research_mode.change(
-            _on_mode_change,
-            inputs=[research_mode],
-            outputs=[
-                institution_only_checkbox, academic_only_checkbox,
-                show_gate_checkbox, options_btn,
-                explainer_panel, template_selector,
-                *[analysis_panels[uc] for uc in ANALYSIS_USE_CASE_ORDER],
-            ],
-            queue=False,
+        def _on_mode_select(group: str, analysis: str):
+            mode = compose_mode(group, analysis)
+            return (
+                mode,                                             # research_mode
+                gr.update(visible=group == ANALYSIS_GROUP),       # analysis_mode
+                mode_description(mode),                           # mode_hint
+                *_on_mode_change(mode),
+            )
+
+        for _mode_dropdown in (mode_group, analysis_mode):
+            _mode_dropdown.change(
+                _on_mode_select,
+                inputs=[mode_group, analysis_mode],
+                outputs=[
+                    research_mode, analysis_mode, mode_hint,
+                    institution_only_checkbox, academic_only_checkbox,
+                    show_gate_checkbox, options_btn,
+                    explainer_panel, template_selector,
+                    *[analysis_panels[uc] for uc in ANALYSIS_USE_CASE_ORDER],
+                ],
+                queue=False,
+            )
+
+        # Start tiles: set the first dropdown (its change event does the
+        # rest) and put the cursor into the text field.
+        def _set_mode_group(value: str):
+            return lambda: gr.update(value=value)
+
+        for _tile_value, _tile_btn in start_tiles:
+            _tile_btn.click(
+                _set_mode_group(_tile_value),
+                inputs=None, outputs=[mode_group], queue=False,
+            ).then(
+                None, queue=False,
+                js="() => { document.querySelector('#message-input textarea')?.focus(); }",
+            )
+
+        # Hide the tiles once the chat holds more than the welcome message.
+        # Browser-only, so streamed chat updates cause no server calls.
+        chatbot.change(
+            None, inputs=[chatbot], queue=False,
+            js="""(h) => {
+                document.body.toggleAttribute('data-chat-started',
+                                              (h || []).length > 1);
+            }""",
         )
 
         # Options row: toggled in the browser only. The flag sits on

@@ -168,28 +168,32 @@ footer { display: none !important; }
     box-shadow: none !important;
     gap: 12px !important;
 }
-#composer-toolbar > .form { flex: 0 1 230px !important; }
+#composer-toolbar > .form {
+    flex: 0 1 auto !important;
+    flex-wrap: nowrap !important;
+}
+#composer-toolbar .mode-select { flex: 0 1 210px !important; }
 
 /* compact mode selector in the toolbar */
-#research-mode {
+.mode-select {
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: transparent !important;
     flex-grow: 1 !important;
 }
-#research-mode .wrap {
+.mode-select .wrap {
     height: 36px !important;
     min-height: 36px !important;
     border-radius: 8px !important;
     background: transparent !important;
 }
-#research-mode .wrap-inner,
-#research-mode .secondary-wrap {
+.mode-select .wrap-inner,
+.mode-select .secondary-wrap {
     height: 34px !important;
     padding: 0 10px !important;
 }
-#research-mode .secondary-wrap { padding: 0 !important; }
+.mode-select .secondary-wrap { padding: 0 !important; }
 
 /* discuss + start stay together and sit on the right */
 #composer-actions {
@@ -199,7 +203,7 @@ footer { display: none !important; }
     gap: 8px !important;
     flex-wrap: nowrap !important;
 }
-#research-mode input {
+.mode-select input {
     height: 34px !important;
     font-size: 14px !important;
 }
@@ -240,6 +244,52 @@ body[data-options-open] #options-btn {
 }
 #research-btn:hover {
     background: var(--button-primary-background-fill-hover) !important;
+}
+
+/* one-line description of the selected mode */
+#mode-hint {
+    padding: 0 14px 10px !important;
+}
+#mode-hint p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--body-text-color-subdued);
+}
+
+/* start tiles above the input card; gone once the chat has started */
+#start-tiles {
+    flex: 0 0 auto !important;
+    padding: 8px 12px 0 !important;
+    gap: 8px !important;
+}
+body[data-chat-started] #start-tiles {
+    display: none !important;
+}
+.start-tile {
+    display: block !important;   /* ::first-line needs a block box */
+    white-space: pre-line !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    padding: 10px 12px !important;
+    min-height: 60px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.35 !important;
+    color: var(--body-text-color-subdued) !important;
+    background: var(--background-fill-primary) !important;
+    border: 1px solid var(--border-color-primary) !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+.start-tile::first-line {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--body-text-color);
+}
+.start-tile:hover {
+    border-color: var(--color-accent) !important;
+    background: var(--background-fill-secondary) !important;
 }
 
 /* options row: closed unless the "Optionen" button set the body flag */

@@ -93,3 +93,78 @@ def mode_choices(profile=None) -> list[tuple[str, str]]:
             label = label.replace("{institution}", profile.label)
         out.append((label, mode_id))
     return out
+
+
+# ── Two-level selector: research forms + "Analyse …" ──
+# The toolbar shows the research forms directly and bundles the analysis
+# modes behind one entry, with a second dropdown for the concrete mode.
+# The effective mode is still a single ID from RESEARCH_MODES.
+
+#: Value of the "Analyse …" entry in the first dropdown (not a mode ID).
+ANALYSIS_GROUP: str = "analysis"
+ANALYSIS_GROUP_LABEL: str = "🧠 Analyse …"
+
+#: Modes offered under "Analyse …" (display order follows RESEARCH_MODES).
+ANALYSIS_GROUP_MEMBERS: frozenset[str] = frozenset({
+    "explainer", "peer_review", "decision_analysis",
+    "research_design", "grant_proposal", "literature_review",
+})
+
+DEFAULT_ANALYSIS_MODE: str = next(
+    m for m in RESEARCH_MODE_ORDER if m in ANALYSIS_GROUP_MEMBERS
+)
+
+#: One-line description per mode, shown below the toolbar.
+MODE_DESCRIPTIONS: dict[str, str] = {
+    "web": "Allgemeine Onlinesuche mit Bericht und Quellenangaben – für "
+           "aktuelle Themen, Marktinformationen und Allgemeinwissen.",
+    "institution": "Sucht in den Quellen von {institution} (Website, "
+                   "Personenverzeichnis) – für Fragen rund um die Einrichtung.",
+    "literature_check": "Prüft ein vorhandenes Literaturverzeichnis Eintrag für "
+                        "Eintrag gegen CrossRef und OpenAlex, findet Fehler und "
+                        "ergänzt DOIs.",
+    "literature_finder": "Durchsucht OpenAlex, Semantic Scholar und arXiv zu "
+                         "Ihrer Forschungsfrage und bewertet die Treffer.",
+    "explainer": "Erklärt ein Thema strukturiert für eine bestimmte Zielgruppe.",
+    "peer_review": "Erstellt ein strukturiertes Gutachten zu einem Paper, "
+                   "Aspekt für Aspekt.",
+    "decision_analysis": "Vergleicht 2–8 Optionen anhand Ihrer Kriterien.",
+    "research_design": "Entwickelt aus einer Forschungsfrage Forschungslücke, "
+                       "Hypothesen, Methode und Limitationen.",
+    "grant_proposal": "Antragsentwurf mit Literaturrecherche zum "
+                      "Forschungsstand, Arbeitsplan und Kohärenzprüfung.",
+    "literature_review": "Literaturübersicht mit Citation Chasing: je "
+                         "Leitfrage eine Synthese, dazu eine Metasynthese.",
+}
+
+
+def mode_group_choices(profile=None) -> list[tuple[str, str]]:
+    """(label, value) pairs for the first dropdown: research forms + "Analyse …"."""
+    out = [c for c in mode_choices(profile) if c[1] not in ANALYSIS_GROUP_MEMBERS]
+    out.append((ANALYSIS_GROUP_LABEL, ANALYSIS_GROUP))
+    return out
+
+
+def analysis_mode_choices(profile=None) -> list[tuple[str, str]]:
+    """(label, ID) pairs for the second dropdown (analysis modes only)."""
+    return [c for c in mode_choices(profile) if c[1] in ANALYSIS_GROUP_MEMBERS]
+
+
+def compose_mode(group: str, analysis: str) -> str:
+    """Effective mode ID from the two dropdown values."""
+    if group == ANALYSIS_GROUP:
+        return analysis if analysis in ANALYSIS_GROUP_MEMBERS else DEFAULT_ANALYSIS_MODE
+    if group in _MODE_ROUTING and group not in ANALYSIS_GROUP_MEMBERS:
+        return group
+    return DEFAULT_RESEARCH_MODE
+
+
+def mode_description(mode_id: str, profile=None) -> str:
+    """Short description of a mode ('' if none)."""
+    text = MODE_DESCRIPTIONS.get(mode_id or "", "")
+    if "{institution}" in text:
+        if profile is None:
+            from src.institution import get_profile
+            profile = get_profile()
+        text = text.replace("{institution}", profile.name or profile.label)
+    return text
