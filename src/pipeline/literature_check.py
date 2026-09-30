@@ -186,7 +186,7 @@ class LiteratureChecker:
         # (_split_raw_entries → _join_entry_lines), so that URLs are not
         # destroyed globally.
         await progress_callback(
-            "status", "📖 Analysing the bibliography..."
+            "status", "📖 Literaturverzeichnis wird analysiert ..."
         )
         self._parse_error = ""
         entries = await self._parse_entries(raw_text)
@@ -198,7 +198,7 @@ class LiteratureChecker:
                 LiteratureReport(),
             )
 
-        await progress_callback("status", f"📖 {len(entries)} entries recognised")
+        await progress_callback("status", f"📖 {len(entries)} Einträge erkannt")
         logger.info(f"Literature check: {len(entries)} entries parsed")
 
         if self._stop_requested:
@@ -207,7 +207,7 @@ class LiteratureChecker:
         # ═══ Stage 2: API lookup ════════════════════════════════════
         await progress_callback(
             "status",
-            f"🔍 Checking {len(entries)} entries in 5 databases..."
+            f"🔍 {len(entries)} Einträge werden in 5 Datenbanken geprüft ..."
         )
 
         for i, entry in enumerate(entries):
@@ -216,7 +216,7 @@ class LiteratureChecker:
 
             await progress_callback(
                 "status",
-                f"🔍 [{i+1}/{len(entries)}] Checking: "
+                f"🔍 [{i+1}/{len(entries)}] Prüfe: "
                 f"{str(entry.authors[0]) if entry.authors else '?'} "
                 f"({entry.year}) — {entry.title[:50]}..."
             )
@@ -276,7 +276,7 @@ class LiteratureChecker:
             await asyncio.sleep(0.05)  # only for UI responsiveness
 
         # ═══ Stage 3: field comparison ═══════════════════════════════
-        await progress_callback("status", "📊 Comparing fields...")
+        await progress_callback("status", "📊 Felder werden abgeglichen ...")
 
         for entry in entries:
             if entry.api_matches:
@@ -330,7 +330,7 @@ class LiteratureChecker:
         if url_candidates:
             await progress_callback(
                 "status",
-                f"🔗 Checking {len(url_candidates)} URLs directly..."
+                f"🔗 {len(url_candidates)} URLs werden direkt geprüft ..."
             )
             await self._verify_urls(url_candidates, progress_callback)
 
@@ -339,12 +339,12 @@ class LiteratureChecker:
         if not_found and self.searxng:
             await progress_callback(
                 "status",
-                f"🌐 Web search for {len(not_found)} entries not found..."
+                f"🌐 Websuche für {len(not_found)} nicht gefundene Einträge ..."
             )
             await self._web_search_unfound(not_found, progress_callback)
 
         # ═══ Stage 4b: metrics & duplicates ══════════════════════════
-        await progress_callback("status", "📊 Extracting metrics...")
+        await progress_callback("status", "📊 Kennzahlen werden ermittelt ...")
 
         # Take citation counts from the API matches
         for entry in entries:
@@ -361,7 +361,7 @@ class LiteratureChecker:
         duplicates = self._detect_duplicates(entries)
 
         # ═══ Stage 5: report ══════════════════════════════════════
-        await progress_callback("status", "✍️ Writing the check report...")
+        await progress_callback("status", "✍️ Prüfbericht wird geschrieben ...")
 
         # Finalise statistics
         self.stats["entries_total"] = len(entries)
@@ -895,7 +895,7 @@ class LiteratureChecker:
 
                 await progress_callback(
                     "status",
-                    f"🔗 Checking URL: {url[:60]}..."
+                    f"🔗 Prüfe URL: {url[:60]}..."
                 )
 
                 try:
@@ -1146,7 +1146,7 @@ class LiteratureChecker:
             if progress_callback:
                 await progress_callback(
                     "status",
-                    f"✍️ Writing report [{i+1}/{len(entries)}]: "
+                    f"✍️ Bericht wird geschrieben [{i+1}/{len(entries)}]: "
                     f"{str(entry.authors[0]) if entry.authors else '?'} "
                     f"({entry.year})..."
                 )

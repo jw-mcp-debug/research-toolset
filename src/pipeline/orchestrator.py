@@ -558,7 +558,7 @@ class ResearchOrchestrator:
                 # No finished_at, no execution.
                 await progress_callback(
                     "status",
-                    f"📋 Building the execution plan: {mode}",
+                    f"📋 Ausführungsplan wird erstellt: {mode}",
                 )
                 await runner.decompose_only(ctx)
                 return ctx
@@ -566,7 +566,7 @@ class ResearchOrchestrator:
             # Normal execution or resume after the gate
             await progress_callback(
                 "status",
-                f"🔬 Starting the analysis pipeline: {mode}",
+                f"🔬 Analyse-Pipeline wird gestartet: {mode}",
             )
             await runner.run(ctx, skip_decompose=skip_decompose)
             ctx.finished_at = datetime.now().isoformat()
@@ -2474,9 +2474,9 @@ class ResearchOrchestrator:
                 f"(person match on '{anchor.target}' failed)"
             )
             await progress_callback("status", (
-                f"🛡️ Hallucination filter: {n_ext} extracts from "
-                f"{n_src} sources discarded — the sources do not mention "
-                f"'{anchor.target}'"
+                f"🛡️ Halluzinationsfilter: {n_ext} Extrakte aus "
+                f"{n_src} Quellen verworfen — die Quellen erwähnen "
+                f"„{anchor.target}“ nicht"
             ))
 
         return list(results)
@@ -2635,8 +2635,8 @@ class ResearchOrchestrator:
             )
             try:
                 await progress_callback("status", (
-                    f"🎯 Off-topic filter: {rejected_count} thematically "
-                    f"unsuitable source(s) skipped"
+                    f"🎯 Themenfilter: {rejected_count} thematisch "
+                    f"unpassende Quelle(n) übersprungen"
                 ))
             except Exception:
                 pass  # progress failures must not stop the pipeline
@@ -3248,8 +3248,8 @@ class ResearchOrchestrator:
         if plan_questions:
             await progress_callback(
                 "report_stream",
-                f"⏳ *Condensing extracts into {len(plan_questions)} "
-                f"question answers ({len(ctx.extracts)} extracts in total)...*",
+                f"⏳ *Extrakte werden zu {len(plan_questions)} "
+                f"Antworten auf die Fragen verdichtet (insgesamt {len(ctx.extracts)} Extrakte) ...*",
             )
             map_results = await asyncio.gather(
                 *[_summarize_question(q) for q in plan_questions]
@@ -3405,7 +3405,7 @@ class ResearchOrchestrator:
             )
             await progress_callback(
                 "report_stream",
-                "⏳ *The synthesis returned no text — trying again...*",
+                "⏳ *Die Synthese lieferte keinen Text — neuer Versuch ...*",
             )
             try:
                 full_report = (await asyncio.wait_for(

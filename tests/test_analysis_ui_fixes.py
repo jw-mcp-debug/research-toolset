@@ -181,9 +181,9 @@ def test_research_plan_formatter_accepts_production_arguments():
         )
     finally:
         set_profile(None)
-    assert "Research plan" in out
-    assert "EU research" in out
-    assert "scholarly sources" in out
+    assert "Rechercheplan" in out
+    assert "EU-Recherche" in out
+    assert "wissenschaftliche Quellen" in out
     assert "de, en" in out
 
 
@@ -192,7 +192,7 @@ def test_research_plan_formatter_without_context():
     from src.ui.components.plan_preview import format_research_plan_markdown
 
     out = format_research_plan_markdown(ResearchPlan(questions=[]))
-    assert "Research plan" in out
+    assert "Rechercheplan" in out
     assert "Mode" not in out
 
 

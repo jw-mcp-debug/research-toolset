@@ -51,7 +51,7 @@ class TestFormatAnalysisEvent(unittest.TestCase):
 
     def test_node_start(self):
         out = format_analysis_event("node_start", {"node": "analysis_layer_1"})
-        self.assertIn("Starting", out)
+        self.assertIn("Start", out)
         self.assertIn("analysis_layer_1", out)
 
     def test_node_done_with_metadata(self):
@@ -68,7 +68,7 @@ class TestFormatAnalysisEvent(unittest.TestCase):
             "metadata": {"executed": 5, "done": 4, "failed": 1},
         })
         self.assertIn("4/5 OK", out)
-        self.assertIn("1 failed", out)
+        self.assertIn("1 fehlgeschlagen", out)
 
     def test_node_skipped(self):
         out = format_analysis_event("node_skipped", {
@@ -99,7 +99,7 @@ class TestFormatAnalysisEvent(unittest.TestCase):
     def test_plan_ready(self):
         out = format_analysis_event("plan_ready", {"n_tasks": 8})
         self.assertIn("📋", out)
-        self.assertIn("8 tasks", out)
+        self.assertIn("8 Aufgaben", out)
 
     def test_unknown_event_silent(self):
         out = format_analysis_event("never_heard_of", {"x": 1})
@@ -130,7 +130,7 @@ class TestExplainerInputs(unittest.TestCase):
             length="short", purpose="",
         )
         self.assertFalse(ok)
-        self.assertIn("Topic", msg)
+        self.assertIn("Thema", msg)
 
     def test_audience_too_short(self):
         ok, msg = validate_explainer_inputs(
@@ -138,7 +138,7 @@ class TestExplainerInputs(unittest.TestCase):
             length="short", purpose="",
         )
         self.assertFalse(ok)
-        self.assertIn("Audience", msg)
+        self.assertIn("Zielgruppe", msg)
 
     def test_purpose_optional(self):
         """purpose is optional, an empty value is fine."""
@@ -191,7 +191,7 @@ class TestFormatPlanMarkdown(unittest.TestCase):
 
     def test_none_plan(self):
         out = format_task_plan_markdown(None)
-        self.assertIn("no ", out.lower())
+        self.assertIn("kein", out.lower())
 
     def test_empty_tasks(self):
         plan = TaskPlan(use_case="explainer", tasks=[])
@@ -212,8 +212,8 @@ class TestFormatPlanMarkdown(unittest.TestCase):
         ])
         out = format_task_plan_markdown(plan)
         self.assertIn("explainer", out)
-        self.assertIn("3 tasks", out)
-        self.assertIn("2 phases", out)
+        self.assertIn("3 Aufgaben", out)
+        self.assertIn("2 Phasen", out)
         # The task IDs are in it
         self.assertIn("K1", out)
         self.assertIn("E1", out)
@@ -233,7 +233,7 @@ class TestFormatResearchPlanMarkdown(unittest.TestCase):
             )],
         )
         out = format_research_plan_markdown(plan)
-        self.assertIn("Research plan", out)
+        self.assertIn("Rechercheplan", out)
         self.assertIn("F1", out)
         self.assertIn("Test?", out)
 
@@ -401,7 +401,7 @@ class TestPreflightChecker(unittest.TestCase):
         ])
         ok, errors = checker.validate({"x": "c"})
         self.assertFalse(ok)
-        self.assertTrue(any("allowed options" in e for e in errors))
+        self.assertTrue(any("erlaubten Optionen" in e for e in errors))
 
     def test_max_length_exceeded(self):
         checker = PreflightChecker([
@@ -409,7 +409,7 @@ class TestPreflightChecker(unittest.TestCase):
         ])
         ok, errors = checker.validate({"x": "viel zu lang"})
         self.assertFalse(ok)
-        self.assertTrue(any("characters" in e for e in errors))
+        self.assertTrue(any("Zeichen" in e for e in errors))
 
     def test_whitespace_only_treated_as_empty(self):
         checker = PreflightChecker([

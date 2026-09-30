@@ -52,10 +52,10 @@ class TestHeader(unittest.TestCase):
             rounds_completed=2,
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("Research statistics", out)
-        self.assertIn("Rounds:** 2", out)
-        self.assertIn("Sources fetched:** 3", out)
-        self.assertIn("Extracts obtained:** 2", out)
+        self.assertIn("Recherchestatistik", out)
+        self.assertIn("Runden:** 2", out)
+        self.assertIn("Abgerufene Quellen:** 3", out)
+        self.assertIn("Gewonnene Extrakte:** 2", out)
 
 
 class TestFilterLosses(unittest.TestCase):
@@ -89,12 +89,12 @@ class TestFilterLosses(unittest.TestCase):
             }],
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("Filter statistics", out)
+        self.assertIn("Filterstatistik", out)
         self.assertIn("person_hallucination", out)
         self.assertIn("30/100", out)
         self.assertIn("30%", out)
         # below HIGH_LOSS_RATE → no warning marker
-        self.assertNotIn("⚠️", out.split("Filter statistics")[1])
+        self.assertNotIn("⚠️", out.split("Filterstatistik")[1])
 
     def test_high_loss_rate_warning_marker(self):
         rate = (HIGH_LOSS_RATE + CRITICAL_LOSS_RATE) / 2  # between 50 % and 90 %
@@ -107,7 +107,7 @@ class TestFilterLosses(unittest.TestCase):
         )
         out = format_filter_stats_banner(ctx)
         # warning marker present, but NOT CRITICAL
-        filter_section = out.split("### 🛡️ Filter statistics")[1]
+        filter_section = out.split("### 🛡️ Filterstatistik")[1]
         self.assertIn("⚠️", filter_section)
         self.assertNotIn("CRITICAL", filter_section)
 
@@ -124,11 +124,11 @@ class TestFilterLosses(unittest.TestCase):
             }],
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("CRITICAL", out)
+        self.assertIn("KRITISCH", out)
         self.assertIn("528/528", out)
         # notice block for critical filters
-        self.assertIn("90% loss", out)
-        self.assertIn("without this filter", out)
+        self.assertIn("90 % Verlust", out)
+        self.assertIn("ohne diesen Filter", out)
 
     def test_aggregates_across_rounds(self):
         """Two rounds with losses → values are added up."""
@@ -163,11 +163,11 @@ class TestCoverage(unittest.TestCase):
             }],
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("Coverage", out)
+        self.assertIn("Abdeckung", out)
         self.assertIn("✅", out)
-        self.assertIn("2 answered", out)
+        self.assertIn("2 beantwortet", out)
         # no details with only answered
-        self.assertNotIn("F1**", out.split("Coverage")[1])
+        self.assertNotIn("F1**", out.split("Abdeckung")[1])
 
     def test_unanswered_shows_detail(self):
         ctx = _MinimalCtx(
@@ -270,16 +270,16 @@ class TestQualityAndFulfillment(unittest.TestCase):
             },
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("Report quality", out)
+        self.assertIn("Berichtsqualität", out)
         self.assertIn("poor", out)
-        self.assertIn("8 findings", out)
+        self.assertIn("8 Befunde", out)
         # the first 5 are in it
         for i in range(5):
             self.assertIn(f"Mangel {i}", out)
         # finding 5 is not (we show 0..4)
         self.assertNotIn("Mangel 5", out)
         # "3 more"
-        self.assertIn("3 more", out)
+        self.assertIn("3 weitere", out)
 
     def test_fulfillment_failed_shows_nacharbeit(self):
         ctx = _MinimalCtx(
@@ -291,9 +291,9 @@ class TestQualityAndFulfillment(unittest.TestCase):
             },
         )
         out = format_filter_stats_banner(ctx)
-        self.assertIn("Request fulfilment", out)
+        self.assertIn("Erfüllung der Anfrage", out)
         self.assertIn("Stromverbrauch", out)
-        self.assertIn("Suggestion:", out)
+        self.assertIn("Vorschlag:", out)
         self.assertIn("TDP-Sektion", out)
 
 
@@ -336,7 +336,7 @@ class TestRealisticDgxScenario(unittest.TestCase):
         self.assertIn("40", out)
         # Filter
         self.assertIn("528/528", out)  # aggregate over the rounds
-        self.assertIn("CRITICAL", out)
+        self.assertIn("KRITISCH", out)
         # Coverage
         self.assertIn("filter_blocked", out)
         # Diagnosis: user_message is shown; the internal code

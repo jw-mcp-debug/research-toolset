@@ -57,7 +57,7 @@ def make_chat_summary(use_case: str, inputs: dict) -> str:
         if value:
             return shorten_for_display(value, 200)
     if "paper_text" in inputs:
-        return f"Paper ({len(str(inputs['paper_text']))} characters)"
+        return f"Paper ({len(str(inputs['paper_text']))} Zeichen)"
     # Last resort: any filled text field, rather than the technical
     # use-case name.
     for value in inputs.values():
@@ -140,7 +140,7 @@ def format_analysis_event(event: str, data: Any) -> str:
 
     if event == "node_start":
         node = data.get("node", "?")
-        return f"▶️ Starting: `{node}`"
+        return f"▶️ Start: `{node}`"
 
     if event == "node_done":
         node = data.get("node", "?")
@@ -150,41 +150,41 @@ def format_analysis_event(event: str, data: Any) -> str:
         if "done" in meta and "executed" in meta:
             extra = (
                 f" — {meta['done']}/{meta['executed']} OK"
-                + (f", {meta['failed']} failed"
+                + (f", {meta['failed']} fehlgeschlagen"
                    if meta.get("failed") else "")
             )
         else:
             extra = ""
         ms_str = f" ({ms} ms)" if ms is not None else ""
-        return f"✅ `{node}` done{extra}{ms_str}"
+        return f"✅ `{node}` fertig{extra}{ms_str}"
 
     if event == "node_skipped":
         node = data.get("node", "?")
         reason = data.get("reason", "")
-        return f"⊘ `{node}` skipped{(': ' + reason) if reason else ''}"
+        return f"⊘ `{node}` übersprungen{(': ' + reason) if reason else ''}"
 
     if event == "node_failed":
         node = data.get("node", "?")
-        error = data.get("error", "Unknown error")
+        error = data.get("error", "Unbekannter Fehler")
         # Shorten long errors
         if len(error) > 200:
             error = error[:200] + "…"
-        return f"❌ `{node}` failed: {error}"
+        return f"❌ `{node}` fehlgeschlagen: {error}"
 
     if event == "pipeline_done":
         n = data.get("nodes", 0)
-        return f"🏁 Pipeline finished ({n} nodes)"
+        return f"🏁 Pipeline beendet ({n} Knoten)"
 
     if event == "pipeline_stopped":
-        return "⏹ Pipeline stopped"
+        return "⏹ Pipeline gestoppt"
 
     if event == "plan_ready":
         n_tasks = data.get("n_tasks", 0)
-        return f"📋 Plan created ({n_tasks} tasks)"
+        return f"📋 Plan erstellt ({n_tasks} Aufgaben)"
 
     if event == "error":
-        msg = data.get("message", str(data) if data else "Unknown error")
-        return f"❌ Error: {msg}"
+        msg = data.get("message", str(data) if data else "Unbekannter Fehler")
+        return f"❌ Fehler: {msg}"
 
     # Unknown event — return nothing rather than producing noise
     return ""

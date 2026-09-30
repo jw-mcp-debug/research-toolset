@@ -60,17 +60,17 @@ def _render_header(ctx: Any) -> str:
     except Exception:
         dur = "?"
     lines = [
-        f"**Status:** `{status}`  |  **Rounds:** {rounds}  |  "
-        f"**Sources:** {n_src}  |  **Extracts:** {n_ext}  |  "
-        f"**Duration:** {dur}",
+        f"**Status:** `{status}`  |  **Runden:** {rounds}  |  "
+        f"**Quellen:** {n_src}  |  **Extrakte:** {n_ext}  |  "
+        f"**Dauer:** {dur}",
     ]
     q = _short(_g(ctx, "query", ""), 400)
     if q:
         lines.append(f"\n> {q}")
     err = _g(ctx, "error_message", "")
     if err:
-        lines.append(f"\n⚠️ **Error:** {_short(err, 500)}")
-    return _section("🧠 Pipeline run", "\n".join(lines))
+        lines.append(f"\n⚠️ **Fehler:** {_short(err, 500)}")
+    return _section("🧠 Pipeline-Lauf", "\n".join(lines))
 
 
 def _render_output_schema(ctx: Any) -> str:
@@ -78,9 +78,9 @@ def _render_output_schema(ctx: Any) -> str:
     if not schema:
         return ""
     rows = [
-        f"- **Title:** {_g(schema, 'title', '—')}",
+        f"- **Titel:** {_g(schema, 'title', '—')}",
         f"- **Format:** `{_g(schema, 'format_type', '—')}`  |  "
-        f"**Language:** `{_g(schema, 'language', '—')}`",
+        f"**Sprache:** `{_g(schema, 'language', '—')}`",
     ]
     secs = _g(schema, "sections", []) or []
     if secs:
@@ -90,11 +90,11 @@ def _render_output_schema(ctx: Any) -> str:
                 names.append(str(s.get("title") or s.get("name") or s))
             else:
                 names.append(str(s))
-        rows.append(f"- **Sections:** {', '.join(names)}")
+        rows.append(f"- **Abschnitte:** {', '.join(names)}")
     guidance = _short(_g(schema, "synthesis_guidance", ""), 400)
     if guidance:
-        rows.append(f"- **Synthesis guidance:** {guidance}")
-    return _section("📐 Output-Schema", "\n".join(rows))
+        rows.append(f"- **Vorgaben für die Synthese:** {guidance}")
+    return _section("📐 Ausgabeschema", "\n".join(rows))
 
 
 def _render_plan(ctx: Any) -> str:
@@ -113,22 +113,22 @@ def _render_plan(ctx: Any) -> str:
         prio = _g(q, "priority", "—")
         scope = _g(q, "source_scope", "—")
         langs = ", ".join(_g(q, "search_langs", []) or [])
-        answered = "answered" if _g(q, "answered", False) else "open"
+        answered = "beantwortet" if _g(q, "answered", False) else "offen"
         parts.append(
             f"**[{qid}]** {qtext}\n"
-            f"  · Priority `{prio}` · Scope `{scope}` · "
-            f"Languages `{langs or '—'}` · {answered}"
+            f"  · Priorität `{prio}` · Quellenbereich `{scope}` · "
+            f"Sprachen `{langs or '—'}` · {answered}"
         )
         terms = _g(q, "search_terms", []) or []
         if terms:
             preview = ", ".join(f"`{t}`" for t in terms[:8])
             if len(terms) > 8:
                 preview += f" (+{len(terms) - 8})"
-            parts.append(f"  · Search terms: {preview}")
+            parts.append(f"  · Suchbegriffe: {preview}")
 
     durls = _g(plan, "direct_urls", []) or []
     if durls:
-        parts.append(f"\n**Direct URLs ({len(durls)}):**")
+        parts.append(f"\n**Direkte URLs ({len(durls)}):**")
         for d in durls[:15]:
             parts.append(f"  · {_g(d, 'url', '')} — {_short(_g(d, 'reason', ''), 120)}")
 
@@ -143,13 +143,13 @@ def _render_plan(ctx: Any) -> str:
 
     zqs = _g(plan, "directory_queries", []) or []
     if zqs:
-        parts.append(f"\n**Person directory queries:** {len(zqs)}")
+        parts.append(f"\n**Abfragen im Personenverzeichnis:** {len(zqs)}")
 
     fqs = _g(plan, "followup_queries", []) or []
     if fqs:
-        parts.append(f"\n**Follow-up queries (from the coverage assessment):** {len(fqs)}")
+        parts.append(f"\n**Folgeanfragen (aus der Abdeckungsprüfung):** {len(fqs)}")
 
-    return _section("🗺️ Research plan", "\n".join(parts))
+    return _section("🗺️ Rechercheplan", "\n".join(parts))
 
 
 def _render_query_anchor(ctx: Any) -> str:
@@ -166,14 +166,14 @@ def _render_query_anchor(ctx: Any) -> str:
     except Exception:
         is_person = False
     body = (
-        f"- **Type:** `{typ}`  |  **Target:** {target or '—'}  |  "
-        f"**Confidence:** {conf:.2f}  |  Fallback: {_bool_icon(fb)}\n"
-        f"- **Person hallucination filter active:** "
+        f"- **Typ:** `{typ}`  |  **Ziel:** {target or '—'}  |  "
+        f"**Konfidenz:** {conf:.2f}  |  Fallback: {_bool_icon(fb)}\n"
+        f"- **Personen-Halluzinationsfilter aktiv:** "
         f"{_bool_icon(is_person)}"
     )
     if reasoning:
-        body += f"\n- **Reasoning:** {reasoning}"
-    return _section("⚓ Query anchor", body)
+        body += f"\n- **Begründung:** {reasoning}"
+    return _section("⚓ Query-Anker", body)
 
 
 def _render_search_log(ctx: Any) -> str:
@@ -183,7 +183,7 @@ def _render_search_log(ctx: Any) -> str:
     rows = []
     langs = stats.get("languages") or []
     if langs:
-        rows.append(f"- **Search languages:** {', '.join(langs)}")
+        rows.append(f"- **Suchsprachen:** {', '.join(langs)}")
     tbl = stats.get("terms_by_lang") or {}
     for lang, terms in tbl.items():
         terms = terms or []
@@ -195,7 +195,7 @@ def _render_search_log(ctx: Any) -> str:
         if k in ("languages", "terms_by_lang"):
             continue
         rows.append(f"- **{k}:** {_short(v, 200)}")
-    return _section("🔎 Research history", "\n".join(rows))
+    return _section("🔎 Suchverlauf", "\n".join(rows))
 
 
 def _render_filter_stats(ctx: Any) -> str:
@@ -206,19 +206,19 @@ def _render_filter_stats(ctx: Any) -> str:
     for i, rnd in enumerate(rounds, 1):
         if not isinstance(rnd, dict) or not rnd:
             continue
-        parts.append(f"**Round {i}:**")
+        parts.append(f"**Runde {i}:**")
         for fname, fstats in rnd.items():
             if isinstance(fstats, dict):
                 act = fstats.get("activated")
                 rej = fstats.get("rejected", 0)
                 kept = fstats.get("kept", fstats.get("passed", "—"))
                 parts.append(
-                    f"  · `{fname}` — active {_bool_icon(act)}, "
-                    f"discarded {rej}, kept {kept}"
+                    f"  · `{fname}` — aktiv {_bool_icon(act)}, "
+                    f"verworfen {rej}, behalten {kept}"
                 )
             else:
                 parts.append(f"  · `{fname}`: {_short(fstats, 120)}")
-    return _section("🧪 Filter statistics", "\n".join(parts))
+    return _section("🧪 Filterstatistik", "\n".join(parts))
 
 
 def _render_coverage(ctx: Any) -> str:
@@ -229,19 +229,19 @@ def _render_coverage(ctx: Any) -> str:
     for i, rnd in enumerate(per_round, 1):
         if not isinstance(rnd, dict) or not rnd:
             continue
-        parts.append(f"**Round {i}:**")
+        parts.append(f"**Runde {i}:**")
         for qid, cov in rnd.items():
             if isinstance(cov, dict):
                 c = cov.get("coverage", "?")
                 conf = cov.get("confidence", 0.0)
                 miss = cov.get("missing_aspects") or []
-                line = f"  · **{qid}:** `{c}` (conf. {conf:.2f})"
+                line = f"  · **{qid}:** `{c}` (Konf. {conf:.2f})"
                 if miss:
-                    line += f" — missing: {', '.join(str(m) for m in miss[:4])}"
+                    line += f" — fehlt: {', '.join(str(m) for m in miss[:4])}"
                 parts.append(line)
             else:
                 parts.append(f"  · **{qid}:** {_short(cov, 120)}")
-    return _section("📊 Coverage per question", "\n".join(parts))
+    return _section("📊 Abdeckung je Frage", "\n".join(parts))
 
 
 def _render_map_answers(ctx: Any) -> str:
@@ -256,8 +256,8 @@ def _render_map_answers(ctx: Any) -> str:
         q = a.get("question", "")
         n = a.get("n_extracts", 0)
         ans = _short(a.get("answer", ""), 800)
-        parts.append(f"**[{qid}]** {q}  _(from {n} extracts)_\n\n{ans}\n")
-    return _section("🧩 Synthesis map (question answers)", "\n".join(parts))
+        parts.append(f"**[{qid}]** {q}  _(aus {n} Extrakten)_\n\n{ans}\n")
+    return _section("🧩 Synthese-Map (Antworten je Frage)", "\n".join(parts))
 
 
 def _render_diagnosis(ctx: Any) -> str:
@@ -281,7 +281,7 @@ def _render_quality_fulfillment(ctx: Any) -> str:
     parts = []
     if isinstance(rq, dict):
         parts.append(
-            f"**Report quality:** passed {_bool_icon(rq.get('passed'))}"
+            f"**Berichtsqualität:** bestanden {_bool_icon(rq.get('passed'))}"
             f" · {_short(rq.get('rating', ''), 300)}"
         )
         issues = rq.get("issues") or []
@@ -293,18 +293,18 @@ def _render_quality_fulfillment(ctx: Any) -> str:
             else:
                 parts.append(f"  · {_short(m, 200)}")
         if rq.get("fallback_used"):
-            parts.append("  · _(fallback assessment used)_")
+            parts.append("  · _(Fallback-Bewertung verwendet)_")
     if isinstance(qf, dict):
         parts.append(
-            f"\n**Request fulfilment:** fulfilled "
+            f"\n**Erfüllung der Anfrage:** erfüllt "
             f"{_bool_icon(qf.get('fulfilled'))}"
             f" · {_short(qf.get('assessment', ''), 300)}"
         )
         if qf.get("rework"):
             parts.append(f"  · Nacharbeit: {_short(qf.get('rework'), 300)}")
         if qf.get("fallback_used"):
-            parts.append("  · _(fallback assessment used)_")
-    return _section("✅ Quality & fulfilment", "\n".join(parts))
+            parts.append("  · _(Fallback-Bewertung verwendet)_")
+    return _section("✅ Qualität & Erfüllung", "\n".join(parts))
 
 
 def _render_report_revision(ctx: Any) -> str:
@@ -314,19 +314,19 @@ def _render_report_revision(ctx: Any) -> str:
     if not rev.get("applied"):
         reason = _short(rev.get("reason", ""), 300)
         return _section(
-            "✏️ Report revision",
-            f"Not applied — {reason or 'no high-confidence contradictions'}",
+            "✏️ Berichtsrevision",
+            f"Nicht angewendet — {reason or 'keine Widersprüche mit hoher Konfidenz'}",
         )
     n = rev.get("n_corrected", 0)
     facts = rev.get("factoids_corrected") or []
     body = [
-        f"Applied — **{n}** statement(s) corrected "
-        f"(length {rev.get('original_length', '?')} → "
-        f"{rev.get('corrected_length', '?')} characters)",
+        f"Angewendet — **{n}** Aussage(n) korrigiert "
+        f"(Länge {rev.get('original_length', '?')} → "
+        f"{rev.get('corrected_length', '?')} Zeichen)",
     ]
     for f in facts[:10]:
         body.append(f"  · {_short(f, 200)}")
-    return _section("✏️ Report revision", "\n".join(body))
+    return _section("✏️ Berichtsrevision", "\n".join(body))
 
 
 def _render_factoids(ctx: Any) -> str:
@@ -344,10 +344,10 @@ def _render_factoids(ctx: Any) -> str:
             "unverifiable": "❓", "unsupported": "⚠️",
         }.get(str(v), "·")
         parts.append(
-            f"{icon} `{v}` (conf. {conf:.2f}) — "
+            f"{icon} `{v}` (Konf. {conf:.2f}) — "
             f"{_short(f.get('factoid', ''), 220)}"
         )
-    return _section("🔬 Factoid verification", "\n".join(parts))
+    return _section("🔬 Faktoid-Verifikation", "\n".join(parts))
 
 
 def _render_classifier_calls(ctx: Any) -> str:
@@ -368,7 +368,7 @@ def _render_classifier_calls(ctx: Any) -> str:
             fb = c.get("fallback_used", False)
             dur = c.get("duration_seconds", 0.0)
             line = (
-                f"- `{name}` — conf. {conf:.2f}, {dur:.2f}s"
+                f"- `{name}` — Konf. {conf:.2f}, {dur:.2f}s"
                 f"{', Fallback ⚠️' if fb else ''}"
             )
             if fb and c.get("fallback_reason"):
@@ -376,8 +376,8 @@ def _render_classifier_calls(ctx: Any) -> str:
             parts.append(line)
         else:
             parts.append(f"- {_short(c, 160)}")
-    head = f"_{len(calls)} classifier call(s)_\n\n"
-    return _section("🧮 Classifier calls", head + "\n".join(parts))
+    head = f"_{len(calls)} Klassifikator-Aufruf(e)_\n\n"
+    return _section("🧮 Klassifikator-Aufrufe", head + "\n".join(parts))
 
 
 # ─── public entry point ───────────────────────────────────────────
@@ -407,7 +407,7 @@ def render_pipeline_run(ctx: Any) -> str:
     skipped (with a log warning), the rest stays visible.
     """
     if ctx is None:
-        return "*No research started yet.*"
+        return "*Noch keine Recherche gestartet.*"
 
     blocks: list[str] = []
     for fn in _RENDERERS:
@@ -422,5 +422,5 @@ def render_pipeline_run(ctx: Any) -> str:
             )
 
     if not blocks:
-        return "*Research running — no intermediate structures yet.*"
+        return "*Recherche läuft — noch keine Zwischenergebnisse.*"
     return "\n---\n\n".join(blocks)

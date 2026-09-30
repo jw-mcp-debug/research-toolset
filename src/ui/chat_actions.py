@@ -39,18 +39,18 @@ class ChatAction:
 
 
 CHAT_ACTIONS: tuple[ChatAction, ...] = (
-    ChatAction("focus", "💬", "Discuss request",
-               ("Discuss further", "Weiter diskutieren", "Auftrag besprechen", "Besprechen"),
-               "Focus the input field"),
-    ChatAction("adopt", "📋", "Adopt suggestion",
-               ("Use as request", "Vorschlag übernehmen", "Als Auftrag nutzen", "Übernehmen"),
-               "Copy the cleaned-up suggestion into the input field"),
-    ChatAction("research", "🔍", "Start research",
-               ("Research now", "Recherche starten", "Jetzt recherchieren"),
-               "Start the research"),
-    ChatAction("litcheck", "📚", "Check references",
-               ("Check bibliography", "Check literature", "Literatur prüfen", "Literaturprüfung"),
-               "Check a reference list"),
+    ChatAction("focus", "💬", "Auftrag besprechen",
+               ("Discuss request", "Discuss further", "Weiter diskutieren", "Besprechen"),
+               "Zum Eingabefeld springen"),
+    ChatAction("adopt", "📋", "Vorschlag übernehmen",
+               ("Adopt suggestion", "Use as request", "Als Auftrag nutzen", "Übernehmen"),
+               "Bereinigten Vorschlag ins Eingabefeld übernehmen"),
+    ChatAction("research", "🔍", "Recherche starten",
+               ("Start research", "Research now", "Jetzt recherchieren"),
+               "Recherche starten"),
+    ChatAction("litcheck", "📚", "Literatur prüfen",
+               ("Check references", "Check bibliography", "Check literature", "Literaturprüfung"),
+               "Literaturverzeichnis prüfen"),
 )
 
 ACTIONS_BY_NAME = {a.action: a for a in CHAT_ACTIONS}

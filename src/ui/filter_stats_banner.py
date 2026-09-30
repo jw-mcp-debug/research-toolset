@@ -59,10 +59,10 @@ def format_filter_stats_banner(ctx: "HarvestContext") -> str:
         return ""
 
     sections.append(
-        f"### 📊 Research statistics\n\n"
-        f"- **Rounds:** {n_rounds}\n"
-        f"- **Sources fetched:** {n_sources}\n"
-        f"- **Extracts obtained:** {n_extracts}"
+        f"### 📊 Recherchestatistik\n\n"
+        f"- **Runden:** {n_rounds}\n"
+        f"- **Abgerufene Quellen:** {n_sources}\n"
+        f"- **Gewonnene Extrakte:** {n_extracts}"
     )
 
     # ── Filter losses ──
@@ -118,20 +118,20 @@ def _format_filter_losses(ctx: "HarvestContext") -> str:
         if agg["activated_in_rounds"] > 0 and agg["total"] > 0
     }
     if not active:
-        return "### 🛡️ Filters\n\n_No filters activated._"
+        return "### 🛡️ Filter\n\n_Keine Filter aktiv._"
 
-    lines = ["### 🛡️ Filter statistics\n"]
+    lines = ["### 🛡️ Filterstatistik\n"]
     for name, agg in sorted(active.items()):
         rejected = agg["rejected"]
         total = agg["total"]
         rate = rejected / total if total else 0.0
         marker = ""
         if rate >= CRITICAL_LOSS_RATE:
-            marker = " ⚠️ **CRITICAL**"
+            marker = " ⚠️ **KRITISCH**"
         elif rate >= HIGH_LOSS_RATE:
             marker = " ⚠️"
         lines.append(
-            f"- **{name}:** {rejected}/{total} discarded "
+            f"- **{name}:** {rejected}/{total} verworfen "
             f"({rate * 100:.0f}%){marker}"
         )
 
@@ -140,10 +140,10 @@ def _format_filter_losses(ctx: "HarvestContext") -> str:
                 if a["total"] > 0 and a["rejected"] / a["total"] >= CRITICAL_LOSS_RATE]
     if critical:
         lines.append(
-            "\n> **Note:** filters with > 90% loss discarded almost all "
-            "extracts. If the report still looks empty, "
-            "a research run without this filter may give different results.\n"
-            f"> Affected: `{', '.join(sorted(critical))}`"
+            "\n> **Hinweis:** Filter mit mehr als 90 % Verlust haben fast alle "
+            "Extrakte verworfen. Wirkt der Bericht trotzdem leer, kann eine "
+            "Recherche ohne diesen Filter andere Ergebnisse liefern.\n"
+            f"> Betroffen: `{', '.join(sorted(critical))}`"
         )
     return "\n".join(lines)
 
@@ -173,15 +173,19 @@ def _format_coverage(ctx: "HarvestContext") -> str:
         "answered": "✅", "partial": "🟡",
         "unanswered": "⛔", "filter_blocked": "🛡️",
     }
+    status_labels = {
+        "answered": "beantwortet", "partial": "teilweise",
+        "unanswered": "unbeantwortet", "filter_blocked": "vom Filter blockiert",
+    }
     summary_parts = []
     for status, n in counts.items():
         if n > 0:
-            summary_parts.append(f"{icon_map[status]} {n} {status}")
+            summary_parts.append(f"{icon_map[status]} {n} {status_labels[status]}")
 
     if not summary_parts:
         return ""
 
-    lines = ["### 🎯 Coverage per question\n"]
+    lines = ["### 🎯 Abdeckung je Frage\n"]
     lines.append(" · ".join(summary_parts))
 
     # Details for unanswered or filter_blocked questions
@@ -243,23 +247,23 @@ def _format_quality_and_fulfillment(ctx: "HarvestContext") -> str:
         assessment = quality.get("rating", "")
         if not quality.get("passed"):
             parts.append(
-                f"### 📝 Report quality\n\n"
-                f"⚠️ Rating: **{assessment}**, {n_issues} findings:\n"
+                f"### 📝 Berichtsqualität\n\n"
+                f"⚠️ Bewertung: **{assessment}**, {n_issues} Befunde:\n"
             )
             for m in quality["issues"][:5]:  # show at most 5
                 art = m.get("art", "?")
                 besch = m.get("description", "")
                 parts.append(f"- _{art}:_ {besch}")
             if n_issues > 5:
-                parts.append(f"- _({n_issues - 5} more)_")
+                parts.append(f"- _({n_issues - 5} weitere)_")
 
     if fulfillment and not fulfillment.get("fulfilled"):
         assessment = fulfillment.get("assessment", "")
         rework = fulfillment.get("rework", "")
-        block = ["### 🎯 Request fulfilment\n",
-                 f"⚠️ Request not completely fulfilled: {assessment}"]
+        block = ["### 🎯 Erfüllung der Anfrage\n",
+                 f"⚠️ Anfrage nicht vollständig erfüllt: {assessment}"]
         if rework:
-            block.append(f"\n**Suggestion:** {rework}")
+            block.append(f"\n**Vorschlag:** {rework}")
         parts.append("\n".join(block))
 
     return "\n\n".join(parts)

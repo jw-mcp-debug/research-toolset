@@ -38,16 +38,16 @@ Route = tuple[str, Optional[str]]
 # display only and may be translated freely.
 # IMPORTANT: the order here = display order in the dropdown.
 RESEARCH_MODES: list[tuple[str, str, Route]] = [
-    ("web",               "🌐 Web research",        ("web", None)),
-    ("institution",       "🏛️ {institution} research", ("institution", None)),
-    ("literature_check",  "📚 Check references",     ("literature_check", None)),
-    ("literature_finder", "📑 Find literature",     ("analysis", "literature_finder")),
-    ("explainer",         "📖 In-depth explanation",      ("explainer", None)),
-    ("peer_review",       "🔍 Peer review",          ("analysis", "peer_review")),
-    ("decision_analysis", "⚖️ Decision analysis", ("analysis", "decision_analysis")),
-    ("research_design",   "🔬 Research design",     ("analysis", "research_design")),
-    ("grant_proposal",    "💰 Grant proposal",    ("analysis", "grant_proposal")),
-    ("literature_review", "📚 Literature review",    ("analysis", "literature_review")),
+    ("web",               "🌐 Webrecherche",        ("web", None)),
+    ("institution",       "🏛️ {institution}-Recherche", ("institution", None)),
+    ("literature_check",  "📚 Literaturprüfung",     ("literature_check", None)),
+    ("literature_finder", "📑 Literatursuche",     ("analysis", "literature_finder")),
+    ("explainer",         "📖 Vertiefte Erklärung",      ("explainer", None)),
+    ("peer_review",       "🔍 Peer Review",          ("analysis", "peer_review")),
+    ("decision_analysis", "⚖️ Entscheidungsanalyse", ("analysis", "decision_analysis")),
+    ("research_design",   "🔬 Forschungsdesign",     ("analysis", "research_design")),
+    ("grant_proposal",    "💰 Drittmittelantrag",    ("analysis", "grant_proposal")),
+    ("literature_review", "📚 Literature Review",    ("analysis", "literature_review")),
 ]
 
 # ── Derived structures (do NOT maintain by hand) ──

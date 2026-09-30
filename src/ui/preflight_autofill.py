@@ -281,8 +281,8 @@ async def suggest_preflight_values(
 
     if len(conversation) < MIN_CONVERSATION_CHARS:
         return {}, (
-            "Not enough conversation for a suggestion — "
-            "describe your request in the chat first."
+            "Zu wenig Gesprächsverlauf für einen Vorschlag — "
+            "beschreiben Sie Ihr Anliegen zuerst im Chat."
         )
 
     prompt = build_autofill_prompt(requirements, conversation)
@@ -293,18 +293,18 @@ async def suggest_preflight_values(
         )
     except Exception as e:
         logger.warning("Autofill call failed: %s", type(e).__name__)
-        return {}, f"Suggestion failed ({type(e).__name__})."
+        return {}, f"Vorschlag fehlgeschlagen ({type(e).__name__})."
 
     parsed = _parse_json(raw)
     if parsed is None:
         logger.warning("Autofill: answer was not JSON (%d characters)",
                        len(raw or ""))
-        return {}, "The suggestion could not be evaluated."
+        return {}, "Der Vorschlag konnte nicht ausgewertet werden."
 
     values = sanitize_suggestions(parsed, requirements)
     if not values:
         return {}, (
-            "No field could be derived reliably from the conversation."
+            "Aus dem Gespräch ließ sich kein Feld zuverlässig ableiten."
         )
 
     logger.info("Autofill: %d of %d fields suggested",

@@ -952,7 +952,7 @@ class HarvestContext:
 
 OUTPUT_TEMPLATES = {
     "general": {
-        "label": "🔎 General research",
+        "label": "🔎 Allgemeine Recherche",
         "format": "free",
         "description": "The format is chosen automatically from the request — "
                         "the default mode for open research questions",
@@ -969,7 +969,7 @@ OUTPUT_TEMPLATES = {
         ),
     },
     "summary": {
-        "label": "📝 Summary",
+        "label": "📝 Zusammenfassung",
         "format": "summary",
         "description": "Compact summary with the key statements, "
                         "sources embedded as inline links in the text",
@@ -985,7 +985,7 @@ OUTPUT_TEMPLATES = {
         ),
     },
     "structured_overview": {
-        "label": "📋 Structured overview",
+        "label": "📋 Strukturierte Übersicht",
         "format": "structured_report",
         "description": "Per topic block: framing, research findings "
                         "and open questions — well structured and readable",
@@ -1003,7 +1003,7 @@ OUTPUT_TEMPLATES = {
         ),
     },
     "comparison": {
-        "label": "📊 Comparative analysis",
+        "label": "📊 Vergleichende Analyse",
         "format": "comparison",
         "description": "Systematic comparison with an overview table "
                         "and explanatory paragraphs per criterion",
@@ -1018,7 +1018,7 @@ OUTPUT_TEMPLATES = {
         ),
     },
     "fact_check": {
-        "label": "🔍 Fact check",
+        "label": "🔍 Faktencheck",
         "format": "factcheck",
         "description": "Claim → evidence → assessment with a clear verdict",
         "per_section": ["Claim", "Evidence", "Bewertung"],
@@ -1033,7 +1033,7 @@ OUTPUT_TEMPLATES = {
         ),
     },
     "technical_doc": {
-        "label": "📄 Technical documentation",
+        "label": "📄 Technische Dokumentation",
         "format": "technical_doc",
         "description": "Technical analysis with code references, "
                         "configuration examples and recommendations",

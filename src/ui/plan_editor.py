@@ -30,26 +30,26 @@ def format_plan_markdown(plan: "ResearchPlan") -> str:
     user refines the request in the chat, which produces a new plan.
     """
     if plan is None:
-        return "_(no plan)_"
+        return "_(kein Plan)_"
 
     lines: list[str] = []
-    lines.append("## Research plan")
+    lines.append("## Rechercheplan")
     lines.append("")
 
     summary = (plan.summary or "").strip()
     if summary:
-        lines.append(f"**Summary:** {summary}")
+        lines.append(f"**Zusammenfassung:** {summary}")
         lines.append("")
 
     if plan.questions:
-        lines.append(f"### Questions ({len(plan.questions)})")
+        lines.append(f"### Fragen ({len(plan.questions)})")
         lines.append("")
         for q in plan.questions:
             lines.extend(_format_question_md(q))
             lines.append("")
 
     if plan.direct_urls:
-        lines.append("### Direct URLs")
+        lines.append("### Direkte URLs")
         for du in plan.direct_urls:
             url = getattr(du, "url", "")
             reason = getattr(du, "reason", "") or ""
@@ -65,12 +65,12 @@ def format_plan_markdown(plan: "ResearchPlan") -> str:
             owner = getattr(gr, "owner", "") or ""
             repo = getattr(gr, "repo", "") or ""
             platform = getattr(gr, "platform", "github") or "github"
-            label = f"{platform}:{owner}/{repo}" if owner and repo else "(unnamed)"
+            label = f"{platform}:{owner}/{repo}" if owner and repo else "(ohne Namen)"
             lines.append(f"- {label}")
         lines.append("")
 
     if plan.directory_queries:
-        lines.append(f"### Person directory queries ({len(plan.directory_queries)})")
+        lines.append(f"### Abfragen im Personenverzeichnis ({len(plan.directory_queries)})")
         for zq in plan.directory_queries:
             term = getattr(zq, "query", "") or ""
             reason = getattr(zq, "reason", "") or ""
@@ -97,11 +97,11 @@ def _format_question_md(q: "ResearchQuestion") -> list[str]:
     if not terms and q.search_terms:
         terms.append("  - " + ", ".join(q.search_terms))
     if terms:
-        lines.append("  Search terms:")
+        lines.append("  Suchbegriffe:")
         lines.extend(terms)
 
     if q.source_scope:
-        lines.append(f"  Source scope: {q.source_scope}")
+        lines.append(f"  Quellenbereich: {q.source_scope}")
 
     return lines
 

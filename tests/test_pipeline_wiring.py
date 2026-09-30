@@ -76,12 +76,12 @@ print("CREATE_APP_OK")
         from src.pipeline.models import HarvestContext
 
         self.assertEqual(
-            render_pipeline_run(None), "*No research started yet.*"
+            render_pipeline_run(None), "*Noch keine Recherche gestartet.*"
         )
         ctx = HarvestContext(query="Konsistenz der Web-Recherche")
         ctx.status = "running"
         out = render_pipeline_run(ctx)
-        self.assertIn("Pipeline run", out)
+        self.assertIn("Pipeline-Lauf", out)
         self.assertIn("Konsistenz der Web-Recherche", out)
 
     def test_import_is_defensive(self):

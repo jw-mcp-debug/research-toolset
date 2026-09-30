@@ -78,9 +78,9 @@ def format_task_plan_markdown(plan: Optional["TaskPlan"]) -> str:
     wrong type from being rendered after an import.
     """
     if plan is None:
-        return "_(no analysis plan)_"
+        return "_(kein Analyseplan)_"
     if not plan.tasks:
-        return f"### Plan: {plan.use_case}\n\n_(no tasks yet)_"
+        return f"### Plan: {plan.use_case}\n\n_(noch keine Aufgaben)_"
 
     # Group tasks by phase
     by_phase: dict[str, list] = {}
@@ -92,14 +92,14 @@ def format_task_plan_markdown(plan: Optional["TaskPlan"]) -> str:
         by_phase[t.phase].append(t)
 
     lines: list[str] = []
-    lines.append(f"### 📋 Analysis plan: {plan.use_case}")
+    lines.append(f"### 📋 Analyseplan: {plan.use_case}")
     lines.append("")
-    lines.append(f"_{len(plan.tasks)} tasks in {len(phase_order)} phases_")
+    lines.append(f"_{len(plan.tasks)} Aufgaben in {len(phase_order)} Phasen_")
     lines.append("")
 
     for phase_idx, phase in enumerate(phase_order, start=1):
         tasks = by_phase[phase]
-        lines.append(f"**Phase {phase_idx}: {phase}** ({len(tasks)} {'task' if len(tasks) == 1 else 'tasks'})")
+        lines.append(f"**Phase {phase_idx}: {phase}** ({len(tasks)} {'Aufgabe' if len(tasks) == 1 else 'Aufgaben'})")
         for t in tasks:
             desc = t.description or t.id
             deps = ""
@@ -109,7 +109,7 @@ def format_task_plan_markdown(plan: Optional["TaskPlan"]) -> str:
         lines.append("")
 
     if plan.estimated_calls:
-        lines.append(f"_Estimated: {plan.estimated_calls} LLM calls_")
+        lines.append(f"_Geschätzt: {plan.estimated_calls} LLM-Aufrufe_")
 
     return "\n".join(lines).rstrip()
 
@@ -206,20 +206,20 @@ def format_research_plan_markdown(
     context: list[str] = []
     if mode:
         from src.institution import get_profile
-        label = {"institution": f"{get_profile().label} research",
-                 "web": "Web research"}.get(mode, mode)
-        context.append(f"**Mode:** {label}")
+        label = {"institution": f"{get_profile().label}-Recherche",
+                 "web": "Webrecherche"}.get(mode, mode)
+        context.append(f"**Modus:** {label}")
     if academic_only:
-        context.append("**Filter:** scholarly sources only")
+        context.append("**Filter:** nur wissenschaftliche Quellen")
     if search_stats:
         langs = search_stats.get("langs") or search_stats.get("languages")
         if langs:
             langs_text = ", ".join(str(x) for x in langs) if isinstance(
                 langs, (list, tuple, set)) else str(langs)
-            context.append(f"**Languages:** {langs_text}")
+            context.append(f"**Sprachen:** {langs_text}")
         n_terms = search_stats.get("n_terms") or search_stats.get("terms")
         if isinstance(n_terms, int):
-            context.append(f"**Search terms:** {n_terms}")
+            context.append(f"**Suchbegriffe:** {n_terms}")
 
     if not context:
         return body

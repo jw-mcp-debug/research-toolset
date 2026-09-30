@@ -73,33 +73,33 @@ class TestFormatPlanMarkdown(unittest.TestCase):
 
     def test_none_plan(self):
         out = format_plan_markdown(None)
-        self.assertIn("no plan", out)
+        self.assertIn("kein Plan", out)
 
     def test_empty_plan(self):
         out = format_plan_markdown(ResearchPlan())
-        self.assertIn("Research plan", out)
+        self.assertIn("Rechercheplan", out)
         # No sections for empty fields
         self.assertNotIn("### Questions", out)
         self.assertNotIn("### Direct URLs", out)
 
     def test_full_plan_contains_all_sections(self):
         out = format_plan_markdown(_full_plan())
-        self.assertIn("Research plan", out)
+        self.assertIn("Rechercheplan", out)
         self.assertIn("Recherche zu DGX-Hardware", out)
         # Questions
-        self.assertIn("Questions (2)", out)
+        self.assertIn("Fragen (2)", out)
         self.assertIn("**[F1]**", out)
         self.assertIn("Was kostet die DGX B300?", out)
         self.assertIn("**[F2]**", out)
         # Direct URLs
-        self.assertIn("Direct URLs", out)
+        self.assertIn("Direkte URLs", out)
         self.assertIn("https://nvidia.com/dgx-b300", out)
         self.assertIn("Hersteller-Datasheet", out)
         # Git
         self.assertIn("Git-Repos", out)
         self.assertIn("NVIDIA/cuda-samples", out)
         # person directory
-        self.assertIn("Person directory queries (1)", out)
+        self.assertIn("Abfragen im Personenverzeichnis (1)", out)
         self.assertIn("Uni-Computing", out)
 
     def test_question_with_search_terms_by_lang(self):
