@@ -2463,6 +2463,95 @@ def new_chat(app_state: AppState):
     return app_state, [_welcome_message()]
 
 
+# ─── Chat history in the browser (survives a page reload) ─────────
+#
+# The chat lives in gr.State, which is bound to one page load. A copy is
+# kept in the browser's localStorage via gr.BrowserState: written at the
+# end of every handler chain that changes the chat (not per streamed
+# chunk), read back on page load. It stays in this one browser; other
+# devices and other people do not see it.
+
+CHAT_STORAGE_KEY = "research-toolset-chat"
+#: Upper bounds so that localStorage (about 5 MB per origin) never fills up.
+CHAT_STORE_MAX_MESSAGES = 200
+CHAT_STORE_MAX_HISTORY = 60
+
+_WELCOME_PREFIXES = ("👋 Willkommen", "👋 Welcome")
+
+
+def _chat_storage_secret() -> Optional[str]:
+    """Fixed encryption secret for the stored chat.
+
+    Without it Gradio picks a random secret per server start, and every
+    restart of the app would make the stored history unreadable.
+    """
+    secret = os.environ.get("CHAT_STORAGE_SECRET", "").strip()
+    if not secret:
+        logger.warning(
+            "CHAT_STORAGE_SECRET is not set — the chat history in the "
+            "browser survives page reloads, but not a restart of the app."
+        )
+        return None
+    return secret
+
+
+def _message_text(content) -> str:
+    """Flatten chatbot message content (str or list of parts) to text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        return str(content.get("text") or content.get("content") or "")
+    if isinstance(content, (list, tuple)):
+        return "\n".join(_message_text(p) for p in content if p)
+    return ""
+
+
+def _is_transient(text: str) -> bool:
+    """Welcome message and thinking placeholder are not worth storing."""
+    t = text.strip()
+    return not t or t == THINKING_PLACEHOLDER or t.startswith(_WELCOME_PREFIXES)
+
+
+def save_chat_to_browser(chatbot: list, app_state: AppState) -> dict:
+    """Snapshot of the chat for gr.BrowserState (JSON only)."""
+    messages = []
+    for m in chatbot or []:
+        if not isinstance(m, dict) or m.get("role") not in ("user", "assistant"):
+            continue
+        text = _message_text(m.get("content"))
+        if _is_transient(text):
+            continue
+        messages.append({"role": m["role"], "content": text})
+    history = []
+    for m in getattr(app_state, "chat_history", None) or []:
+        text = _message_text(m.get("content"))
+        if m.get("role") in ("user", "assistant") and text.strip():
+            history.append({"role": m["role"], "content": text})
+    return {
+        "version": 1,
+        "chatbot": messages[-CHAT_STORE_MAX_MESSAGES:],
+        "history": history[-CHAT_STORE_MAX_HISTORY:],
+    }
+
+
+def restore_chat_from_browser(stored, app_state: AppState):
+    """Rebuild chat display and LLM context from the stored snapshot."""
+    app_state = _get_ready_state(app_state)
+    chatbot = [_welcome_message()]
+    if isinstance(stored, dict) and stored.get("version") == 1:
+        for m in stored.get("chatbot") or []:
+            if (isinstance(m, dict) and m.get("role") in ("user", "assistant")
+                    and isinstance(m.get("content"), str)):
+                chatbot.append({"role": m["role"], "content": m["content"]})
+        app_state.chat_history = [
+            {"role": m["role"], "content": m["content"]}
+            for m in stored.get("history") or []
+            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+            and isinstance(m.get("content"), str)
+        ]
+    return app_state, chatbot
+
+
 def store_and_clear(msg, paste_buf):
     """Store the message in the state and clear the input immediately
     (queue=False). paste_buf holds fallback text from the JS paste
@@ -2922,6 +3011,13 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # --- State ---
         app_state = gr.State(init_app_state())
         stored_message = gr.State(None)
+        # Chat copy in the browser's localStorage (see save_chat_to_browser).
+        # Fixed key and secret, otherwise every app restart would orphan it.
+        chat_store = gr.BrowserState(
+            None,
+            storage_key=CHAT_STORAGE_KEY,
+            secret=_chat_storage_secret(),
+        )
 
         # Hidden elements
         paste_buffer = gr.Textbox(value="", elem_id="paste-buffer", visible=False)
@@ -3373,6 +3469,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=chat_outputs,
         ).then(
             None, js=_CHAT_ACTION_JS, queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
+            queue=False,
         )
 
         message_input.submit(
@@ -3386,6 +3487,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=chat_outputs,
         ).then(
             None, js=_CHAT_ACTION_JS, queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
+            queue=False,
         )
 
         # --- Research / institution / literature (unified via the dropdown) ---
@@ -3550,6 +3656,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=[plan_gate_group, plan_md, query_edit_box,
                      confirm_btn, cancel_btn],
             queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
+            queue=False,
         )
 
         # Plan-Preview-Gate: Confirm & Cancel
@@ -3562,6 +3673,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
             outputs=[plan_gate_group, plan_md, query_edit_box,
                      confirm_btn, cancel_btn],
             queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
+            queue=False,
         )
 
         cancel_btn.click(
@@ -3572,6 +3688,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                 plan_gate_group, plan_md, query_edit_box,
                 confirm_btn, cancel_btn,
             ],
+            queue=False,
+        ).then(
+            save_chat_to_browser,
+            inputs=[chatbot, app_state],
+            outputs=[chat_store],
             queue=False,
         )
 
@@ -3604,6 +3725,11 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                 new_chat,
                 inputs=[app_state],
                 outputs=[app_state, chatbot],
+                queue=False,
+            ).then(
+                save_chat_to_browser,
+                inputs=[chatbot, app_state],
+                outputs=[chat_store],
                 queue=False,
             )
 
@@ -3693,6 +3819,17 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
                     document.documentElement.style.colorScheme = 'dark';
                 }
             }""",
+        )
+
+        # Restore the chat stored in this browser, then link its action
+        # phrases again (the link script only looks at the last message).
+        demo.load(
+            restore_chat_from_browser,
+            inputs=[chat_store, app_state],
+            outputs=[app_state, chatbot],
+            queue=False,
+        ).then(
+            None, js=_CHAT_ACTION_JS, queue=False,
         )
 
         # Auto Dark-Mode + Paste-Interceptor
