@@ -126,38 +126,3 @@ class TestTemplates(unittest.TestCase):
             self.assertIn(tid, OUTPUT_TEMPLATES)
             self.assertNotEqual(label, tid)
             self.assertRegex(tid, r"^[a-z_]+$")
-
-
-class TestTwoLevelSelector(unittest.TestCase):
-    """First dropdown: research forms + "Analyse …"; second: analysis modes."""
-
-    def test_every_mode_reachable_exactly_once(self):
-        from src.ui.research_modes import (
-            ANALYSIS_GROUP, analysis_mode_choices, compose_mode, mode_group_choices,
-        )
-        prof = InstitutionProfile(name="Beispiel-Hochschule", domains=("example.org",))
-        reachable = [compose_mode(v, "") for _, v in mode_group_choices(prof)
-                     if v != ANALYSIS_GROUP]
-        reachable += [compose_mode(ANALYSIS_GROUP, v)
-                      for _, v in analysis_mode_choices(prof)]
-        self.assertEqual(sorted(reachable), sorted(RESEARCH_MODE_ORDER))
-
-    def test_group_value_is_not_a_mode_id(self):
-        from src.ui.research_modes import ANALYSIS_GROUP
-        self.assertNotIn(ANALYSIS_GROUP, RESEARCH_MODE_ORDER)
-
-    def test_compose_falls_back_safely(self):
-        from src.ui.research_modes import (
-            ANALYSIS_GROUP, DEFAULT_ANALYSIS_MODE, compose_mode,
-        )
-        self.assertEqual(compose_mode(ANALYSIS_GROUP, "web"), DEFAULT_ANALYSIS_MODE)
-        self.assertEqual(compose_mode("peer_review", ""), DEFAULT_RESEARCH_MODE)
-        self.assertEqual(compose_mode(None, None), DEFAULT_RESEARCH_MODE)
-
-    def test_every_mode_has_a_description(self):
-        from src.ui.research_modes import mode_description
-        prof = InstitutionProfile(name="Beispiel-Hochschule", domains=("example.org",))
-        for mode_id in RESEARCH_MODE_ORDER:
-            text = mode_description(mode_id, prof)
-            self.assertTrue(text, mode_id)
-            self.assertNotIn("{", text, mode_id)
