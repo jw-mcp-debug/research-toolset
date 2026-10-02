@@ -2418,6 +2418,8 @@ async def run_literature_check(app_state: AppState, msg: dict, chatbot: list,
         "type": "literature_check",
         "api_stats": report_data.api_stats,
         "llm_stats": report_data.llm_stats,
+        # Built by the check with the best API match per entry
+        "bibtex": report_data.bibtex,
     }
     app_state.current_research = ctx
 
@@ -2593,19 +2595,19 @@ def restore_chat_from_browser(stored, app_state: AppState):
 #
 # Same mechanism and secret as the chat, own storage key. Only the last
 # result is kept, as finished text: the tabs as they were shown, the
-# pipeline-run view and the report as exported. The research object
-# itself (sources, extracts, statistics) is not stored; a restored result
-# gets a minimal HarvestContext that is enough for the Markdown and Word
-# export (the Word metadata appendices are then empty).
+# pipeline-run view, the report as exported and the BibTeX of a reference
+# check. The research object itself (sources, extracts, statistics) is
+# not stored; a restored result gets a minimal HarvestContext that is
+# enough for the exports (the Word metadata appendices are then empty).
 
 RESULT_STORAGE_KEY = "research-toolset-result"
 #: Upper bound for the stored result (UTF-8 bytes of its JSON).
 RESULT_STORE_MAX_BYTES = 250_000
 #: Shortened first when the result is too big; the report comes last.
 _RESULT_TRIM_ORDER = ("pipeline_run", "extracts", "progress", "sources",
-                      "report", "export_md")
+                      "bibtex", "report", "export_md")
 _RESULT_TEXT_FIELDS = ("report", "sources", "progress", "extracts",
-                       "pipeline_run")
+                       "pipeline_run", "bibtex")
 _RESULT_MAX_QUERY = 2000
 
 
@@ -2625,7 +2627,9 @@ def _fit_result_snapshot(snap: dict) -> dict:
             continue
         # Every dropped character frees at least one byte of JSON.
         keep = len(text) - over - _json_size("\n\n" + note) - _json_size(key) - 2
-        head = text[:keep].rsplit("\n", 1)[0] if keep > 0 else ""
+        # BibTeX only in whole entries, everything else in whole lines
+        cut = "\n@" if key == "bibtex" else "\n"
+        head = text[:keep].rsplit(cut, 1)[0] if keep > 0 else ""
         snap[key] = f"{head}\n\n{note}" if head else note
         snap["truncated"].append(key)
     return snap
@@ -2637,6 +2641,8 @@ def build_result_snapshot(ctx, report: str, sources: str, progress: str,
     schema = getattr(ctx, "output_schema", None)
     report = report or ""
     export_md = ctx.final_report or ""
+    is_check = bool(schema and schema.format_type == "literature_check")
+    bibtex = (ctx.search_stats or {}).get("bibtex") if is_check else ""
     snap = {
         "version": 1,
         "saved_at": datetime.now().isoformat(timespec="seconds"),
@@ -2654,6 +2660,7 @@ def build_result_snapshot(ctx, report: str, sources: str, progress: str,
         "progress": progress or "",
         "extracts": extracts or "",
         "pipeline_run": pipeline_run or "",
+        "bibtex": bibtex if isinstance(bibtex, str) else "",
         "truncated": [],
     }
     return _fit_result_snapshot(snap)
@@ -2779,15 +2786,38 @@ def restore_result_from_browser(stored, app_state: AppState):
     )
 
 
-def discard_result_in_browser(app_state: AppState):
-    """"New chat": forget the stored result (the shown one stays).
+def _empty_result_texts() -> tuple[str, str, str, str, str]:
+    """Report, sources, progress, extracts and pipeline run before a run."""
+    return (
+        tr("*Start a research run...*"),
+        tr("*No sources yet.*"),
+        tr("*Waiting for the research to start...*"),
+        tr("*No extracts yet.*"),
+        tr("*No research started yet.*"),
+    )
 
-    Overwrites it with an empty dict: Gradio's browser side does not
-    write falsy values, so None would leave the old result in place.
+
+def clear_result(app_state: AppState):
+    """"New chat": forget the result, in the browser and on the page.
+
+    The browser copy is overwritten with an empty dict: Gradio's browser
+    side does not write falsy values, so None would leave it in place.
+    A running research keeps its result area; it is stored when done.
+
+    Returns updates for app_state, the browser copy, the result panel,
+    the four tabs, the pipeline-run view and the download field.
     """
     app_state = _get_ready_state(app_state)
-    app_state.browser_result_ctx = app_state.current_research
-    return app_state, {}
+    if app_state.research_running:
+        # still the previous result; only the next one gets stored
+        app_state.browser_result_ctx = app_state.current_research
+        return (app_state, {}) + (gr.skip(),) * 7
+    app_state.current_research = None
+    app_state.browser_result_ctx = None
+    app_state.restored_result = None
+    app_state.result_panel_visible = False
+    return (app_state, {}, gr.update(visible=False), *_empty_result_texts(),
+            gr.update(value=None, visible=False))
 
 
 def _word_export_context(app_state: AppState):
@@ -3177,13 +3207,18 @@ async def autofill_preflight_values(app_state, message_value, use_case: str):
     )
 
 
+def _bibtex_text(app_state: AppState) -> str:
+    """BibTeX of the current reference check (stored text if restored)."""
+    snap = _restored_snapshot(app_state)
+    if snap is not None:
+        return snap["bibtex"]
+    return (app_state.current_research.search_stats or {}).get("bibtex") or ""
+
+
 def export_bibtex(app_state: AppState):
     """Export verified bibliography entries as a BibTeX file."""
     if not app_state or not app_state.current_research:
         gr.Warning(tr("No research to export."))
-        return None
-    if _restored_snapshot(app_state):
-        gr.Warning(tr("The BibTeX export is not available for a restored result."))
         return None
     ctx = app_state.current_research
     # Only meaningful for literature checks
@@ -3191,13 +3226,11 @@ def export_bibtex(app_state: AppState):
         gr.Warning(tr("The BibTeX export is only available for reference checks."))
         return None
     try:
-        from src.pipeline.literature_check import generate_bibtex
-        # Extract entries from search_stats
-        entries = ctx.search_stats.get("entries", [])
-        if not entries:
+        bibtex = _bibtex_text(app_state)
+        n_entries = len(re.findall(r"^@\w+\s*\{", bibtex, re.M))
+        if not n_entries:
             gr.Warning(tr("No bibliography entries to export."))
             return None
-        bibtex = generate_bibtex(entries)
         gradio_temp = os.environ.get("GRADIO_TEMP_DIR") or tempfile.gettempdir()
         os.makedirs(gradio_temp, exist_ok=True)
         with tempfile.NamedTemporaryFile(
@@ -3206,7 +3239,7 @@ def export_bibtex(app_state: AppState):
         ) as f:
             f.write(bibtex)
             filepath = f.name
-        gr.Info(tr("✅ BibTeX export created ({n} entries).", n=len(entries)))
+        gr.Info(tr("✅ BibTeX export created ({n} entries).", n=n_entries))
         return filepath
     except Exception as e:
         logger.error(f"BibTeX export error: {e}", exc_info=True)
@@ -3719,15 +3752,17 @@ def _build_page(demo: gr.Blocks, config: AppConfig, lang: str) -> None:
                 )
 
                 with gr.Tabs():
+                    (empty_report, empty_sources, empty_progress,
+                     empty_extracts, empty_pipeline_run) = _empty_result_texts()
                     with gr.TabItem(tr("📄 Report")):
                         report_display = gr.Markdown(
-                            value=tr("*Start a research run...*"),
+                            value=empty_report,
                             elem_id="report-display",
                         )
 
                     with gr.TabItem(tr("🔗 Sources")):
                         sources_display = gr.Markdown(
-                            value=tr("*No sources yet.*"),
+                            value=empty_sources,
                             elem_id="sources-display",
                         )
 
@@ -3736,13 +3771,13 @@ def _build_page(demo: gr.Blocks, config: AppConfig, lang: str) -> None:
                     with gr.TabItem(tr("🧭 History"), elem_id="history-tab"):
                         with gr.Accordion(tr("📊 Progress"), open=True):
                             progress_display = gr.Markdown(
-                                value=tr("*Waiting for the research to start...*"),
+                                value=empty_progress,
                                 elem_id="progress-display",
                             )
 
                         with gr.Accordion(tr("📝 Extracts"), open=False):
                             extracts_display = gr.Markdown(
-                                value=tr("*No extracts yet.*"),
+                                value=empty_extracts,
                                 elem_id="extracts-display",
                             )
 
@@ -3759,7 +3794,7 @@ def _build_page(demo: gr.Blocks, config: AppConfig, lang: str) -> None:
                             # changes (via a .change() handler further
                             # down).
                             pipeline_run_display = gr.Markdown(
-                                value=tr("*No research started yet.*"),
+                                value=empty_pipeline_run,
                                 elem_id="pipeline-run-display",
                             )
 
@@ -4136,9 +4171,11 @@ def _build_page(demo: gr.Blocks, config: AppConfig, lang: str) -> None:
             outputs=[chat_store],
             queue=False,
         ).then(
-            discard_result_in_browser,
+            clear_result,
             inputs=[app_state],
-            outputs=[app_state, result_store],
+            outputs=[app_state, result_store, result_panel,
+                     report_display, sources_display, progress_display,
+                     extracts_display, pipeline_run_display, export_file],
             queue=False,
         )
 

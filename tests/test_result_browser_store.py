@@ -21,10 +21,17 @@ from src.ui import gradio_app as ga
 SKIP = gr.skip()
 
 
+BIBTEX = ("% Header\n% 2 entries\n\n"
+          "@article{a2020,\n  title = {Eins},\n}\n\n"
+          "@book{b2021,\n  title = {Zwei},\n}\n")
+
+
 def _ctx(report="# Bericht\n\nInhalt.", format_type="structured_report"):
     ctx = HarvestContext(query="Sind Vermögenssteuern sinnvoll?",
                          output_language="de")
     ctx.final_report = report
+    if format_type == "literature_check":
+        ctx.search_stats = {"type": "literature_check", "bibtex": BIBTEX}
     ctx.output_schema = OutputSchema(title="Vermögenssteuern",
                                      format_type=format_type, style="sachlich")
     ctx.finished_at = ctx.started_at
@@ -168,11 +175,41 @@ class TestRestoreResult(_NoReadyState):
         self.assertTrue(path and os.path.exists(path), warn.call_args)
         self.addCleanup(os.remove, path)
 
-    def test_bibtex_export_explains_itself(self):
+    def _export_bibtex(self, state):
+        with patch.object(ga.gr, "Info") as info:
+            path = ga.export_bibtex(state)
+        self.addCleanup(os.remove, path)
+        with open(path, encoding="utf-8") as f:
+            return f.read(), info.call_args.args[0]
+
+    def test_bibtex_of_reference_check_restored(self):
         state, *_ = self._round_trip(_ctx(format_type="literature_check"))
-        with patch.object(ga.gr, "Warning") as warn:
-            self.assertIsNone(ga.export_bibtex(state))
-        self.assertIn("restored", warn.call_args.args[0])
+        self.assertEqual(ga._restored_snapshot(state)["bibtex"], BIBTEX)
+        text, info = self._export_bibtex(state)
+        self.assertEqual(text, BIBTEX)
+        self.assertIn("2", info)
+
+    def test_bibtex_export_of_live_reference_check(self):
+        text, _ = self._export_bibtex(_state(_ctx(format_type="literature_check")))
+        self.assertEqual(text, BIBTEX)
+
+    def test_no_bibtex_stored_for_other_modes(self):
+        ctx = _ctx()
+        ctx.search_stats = {"bibtex": BIBTEX}
+        _, snap = _save(_state(ctx))
+        self.assertEqual(snap["bibtex"], "")
+
+    def test_bibtex_shortened_in_whole_entries(self):
+        entry = "@misc{k%d,\n  title = {%s},\n}\n\n"
+        bib = "".join(entry % (i, "T" * 500) for i in range(1000))
+        ctx = _ctx(format_type="literature_check")
+        ctx.search_stats["bibtex"] = bib
+        _, snap = _save(_state(ctx), sources="x\n" * 100_000)
+        self.assertLessEqual(ga._json_size(snap), ga.RESULT_STORE_MAX_BYTES)
+        self.assertIn("bibtex", snap["truncated"])
+        kept = snap["bibtex"].split("\n\n*…")[0]
+        self.assertTrue(kept.rstrip().endswith("}"))
+        self.assertEqual(kept.count("@misc{"), kept.count("\n}"))
 
     def test_empty_or_foreign_data_changes_nothing(self):
         for stored in (None, {}, "kaputt", {"version": 99, "report": "x"},
@@ -205,22 +242,43 @@ class TestRestoreResult(_NoReadyState):
         self.assertIs(ga._word_export_context(state), new_ctx)
 
 
-class TestNewChatDiscardsResult(_NoReadyState):
-    def test_discard_clears_store_and_is_not_saved_again(self):
+class TestNewChatClearsResult(_NoReadyState):
+    def test_clears_store_and_result_area(self):
         st = _state(_ctx())
         _save(st)
-        state, stored = ga.discard_result_in_browser(st)
+        state, stored, panel, *texts, download = ga.clear_result(st)
         # truthy, otherwise the browser keeps the old value
         self.assertEqual(stored, {})
         self.assertEqual(ga.restore_result_from_browser(stored, _state()),
                          (SKIP,) * 7)
+        self.assertEqual(panel, gr.update(visible=False))
+        self.assertEqual(tuple(texts), ga._empty_result_texts())
+        self.assertEqual(download, gr.update(value=None, visible=False))
+        self.assertIsNone(state.current_research)
+        self.assertFalse(state.result_panel_visible)
         # the next research chain without a new result writes nothing
         self.assertEqual(_save(state), (SKIP, SKIP))
 
-    def test_discard_before_first_save(self):
-        st = _state(_ctx())
-        ga.discard_result_in_browser(st)
+    def test_clears_restored_result(self):
+        _, snap = _save(_state(_ctx()))
+        state, *_ = ga.restore_result_from_browser(snap, _state())
+        ga.clear_result(state)
+        self.assertIsNone(state.restored_result)
+        self.assertIsNone(ga._restored_snapshot(state))
+
+    def test_running_research_keeps_its_result_area(self):
+        old = _ctx()
+        st = _state(old)
+        st.research_running = True
+        state, stored, *rest = ga.clear_result(st)
+        self.assertEqual(stored, {})
+        self.assertEqual(rest, [SKIP] * 7)
+        # a failed run leaves the old result in place: not stored again
+        st.research_running = False
         self.assertEqual(_save(st), (SKIP, SKIP))
+        # the result of the run is stored
+        st.current_research = _ctx(report="# Neu")
+        self.assertEqual(_save(st)[1]["report"], TABS["report"])
 
 
 if __name__ == "__main__":
