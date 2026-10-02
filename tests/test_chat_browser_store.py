@@ -4,6 +4,7 @@ Chat history in the browser (gr.BrowserState): snapshot and restore.
 The snapshot must be plain JSON, must drop the welcome message and the
 thinking placeholder, and must stay bounded. Restoring rebuilds both the
 display and the LLM context, and tolerates missing or foreign data.
+Without BROWSER_STORAGE_SECRET nothing is stored.
 """
 
 import json
@@ -12,6 +13,16 @@ from unittest.mock import patch
 
 import tests.conftest  # noqa: F401  (httpx/openai stubs)
 from src.ui import gradio_app as ga
+
+_ENV = patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": "test-secret"})
+
+
+def setUpModule():
+    _ENV.start()
+
+
+def tearDownModule():
+    _ENV.stop()
 
 
 def _state(history=None):
@@ -94,14 +105,23 @@ class TestRestoreChat(unittest.TestCase):
         self.assertEqual(state.chat_history, [{"role": "user", "content": "ok"}])
 
 
-class TestSecret(unittest.TestCase):
+class TestOptIn(unittest.TestCase):
     def test_secret_from_env(self):
-        with patch.dict("os.environ", {"CHAT_STORAGE_SECRET": " abc "}):
-            self.assertEqual(ga._chat_storage_secret(), "abc")
+        with patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": " abc "}):
+            self.assertEqual(ga._browser_storage_secret(), "abc")
+            self.assertTrue(ga.browser_storage_enabled())
 
-    def test_missing_secret_falls_back_to_random(self):
-        with patch.dict("os.environ", {"CHAT_STORAGE_SECRET": ""}):
-            self.assertIsNone(ga._chat_storage_secret())
+    def test_off_without_secret(self):
+        for value in ("", "   "):
+            with self.subTest(value=value), \
+                    patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": value}):
+                self.assertIsNone(ga._browser_storage_secret())
+                self.assertFalse(ga.browser_storage_enabled())
+
+    def test_nothing_saved_without_secret(self):
+        chatbot = [{"role": "user", "content": "Question"}]
+        with patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": ""}):
+            self.assertEqual(ga.save_chat_to_browser(chatbot, _state()), ga.gr.skip())
 
 
 if __name__ == "__main__":

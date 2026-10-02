@@ -8,16 +8,15 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Chat and last result survive a page reload. The chat (what is shown and
-  the context sent to the LLM) and the last finished result (report,
-  sources, progress, extracts, pipeline run, BibTeX of a reference check;
-  at most 250 KB) are kept encrypted in the browser's localStorage
-  (`gr.BrowserState`) and restored on page load. A restored result is
-  marked as such and can be exported again (Markdown, Word without the
-  metadata appendices, BibTeX). *New chat* discards both.
-- `CHAT_STORAGE_SECRET`: fixed key for that storage. Without it Gradio
-  picks a random key per start, and a restart makes the stored data
-  unreadable.
+- Optional browser storage (`BROWSER_STORAGE_SECRET`): the chat (what is
+  shown and the context sent to the LLM) and the last finished result
+  (report, sources, progress, extracts, pipeline run, BibTeX of a reference
+  check; at most 250 KB) are kept in the browser's localStorage, encrypted
+  with that key, and restored on page load. A restored result is marked as
+  such and can be exported again (Markdown, Word without the metadata
+  appendices, BibTeX). *New chat* discards both. Off without the secret;
+  the start-up log says which.
+- *New chat* also clears the result panel.
 
 ### Changed
 

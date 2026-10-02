@@ -2478,6 +2478,11 @@ def new_chat(app_state: AppState):
 # end of every handler chain that changes the chat (not per streamed
 # chunk), read back on page load. It stays in this one browser; other
 # devices and other people do not see it.
+#
+# Opt-in: only with BROWSER_STORAGE_SECRET set. Without it nothing is
+# stored and the app behaves as before — the safe default on shared
+# computers, and no data encrypted with a random per-start key that a
+# restart would make unreadable.
 
 CHAT_STORAGE_KEY = "research-toolset-chat"
 #: Upper bounds so that localStorage (about 5 MB per origin) never fills up.
@@ -2487,20 +2492,13 @@ CHAT_STORE_MAX_HISTORY = 60
 _WELCOME_PREFIXES = ("👋 Welcome",)
 
 
-def _chat_storage_secret() -> Optional[str]:
-    """Fixed encryption secret for the stored chat.
+def _browser_storage_secret() -> Optional[str]:
+    """Encryption secret for chat and result in the browser (None = off)."""
+    return os.environ.get("BROWSER_STORAGE_SECRET", "").strip() or None
 
-    Without it Gradio picks a random secret per server start, and every
-    restart of the app would make the stored history unreadable.
-    """
-    secret = os.environ.get("CHAT_STORAGE_SECRET", "").strip()
-    if not secret:
-        logger.warning(
-            "CHAT_STORAGE_SECRET is not set — the chat history in the "
-            "browser survives page reloads, but not a restart of the app."
-        )
-        return None
-    return secret
+
+def browser_storage_enabled() -> bool:
+    return _browser_storage_secret() is not None
 
 
 def _message_text(content) -> str:
@@ -2520,8 +2518,10 @@ def _is_transient(text: str) -> bool:
     return not t or t == THINKING_PLACEHOLDER or t.startswith(_WELCOME_PREFIXES)
 
 
-def save_chat_to_browser(chatbot: list, app_state: AppState) -> dict:
+def save_chat_to_browser(chatbot: list, app_state: AppState):
     """Snapshot of the chat for gr.BrowserState (JSON only)."""
+    if not browser_storage_enabled():
+        return gr.skip()
     messages = []
     for m in chatbot or []:
         if not isinstance(m, dict) or m.get("role") not in ("user", "assistant"):
@@ -2705,7 +2705,8 @@ def save_result_to_browser(app_state: AppState, report: str, sources: str,
     chain produced no new result (plan gate, autofill stop, error).
     """
     ctx = getattr(app_state, "current_research", None)
-    if (ctx is None or app_state.research_running
+    if (not browser_storage_enabled() or ctx is None
+            or app_state.research_running
             or ctx is app_state.browser_result_ctx):
         return gr.skip(), gr.skip()
     snap = build_result_snapshot(ctx, report, sources, progress, extracts,
@@ -3261,6 +3262,12 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
     if config is None:
         config = AppConfig.from_env()
 
+    if browser_storage_enabled():
+        logger.info("Browser storage: on — chat and last result are kept "
+                    "in the browser, encrypted with BROWSER_STORAGE_SECRET")
+    else:
+        logger.info("Browser storage: off — set BROWSER_STORAGE_SECRET to enable")
+
     with gr.Blocks(
         title=TOOL_NAME,
         analytics_enabled=False,    # second line of defence (the first is the env)
@@ -3284,19 +3291,19 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # --- State ---
         app_state = gr.State(init_app_state())
         stored_message = gr.State(None)
-        # Chat copy in the browser's localStorage (see save_chat_to_browser).
-        # Fixed key and secret, otherwise every app restart would orphan it.
-        chat_store = gr.BrowserState(
-            None,
-            storage_key=CHAT_STORAGE_KEY,
-            secret=_chat_storage_secret(),
-        )
-        # The last result, same storage (see save_result_to_browser).
-        result_store = gr.BrowserState(
-            None,
-            storage_key=RESULT_STORAGE_KEY,
-            secret=_chat_storage_secret(),
-        )
+        # Chat and last result in the browser's localStorage (see
+        # save_chat_to_browser, save_result_to_browser), only with a fixed
+        # secret. Without one, plain session states take their place:
+        # nothing reaches the browser and the save handlers do nothing.
+        storage_secret = _browser_storage_secret()
+        if storage_secret:
+            chat_store = gr.BrowserState(None, storage_key=CHAT_STORAGE_KEY,
+                                         secret=storage_secret)
+            result_store = gr.BrowserState(None, storage_key=RESULT_STORAGE_KEY,
+                                           secret=storage_secret)
+        else:
+            chat_store = gr.State(None)
+            result_store = gr.State(None)
 
         # Hidden elements
         paste_buffer = gr.Textbox(value="", elem_id="paste-buffer", visible=False)
@@ -4156,20 +4163,21 @@ def create_app(config: AppConfig = None) -> gr.Blocks:
         # Restore the chat stored in this browser, then link its action
         # phrases again (the link script only looks at the last message),
         # then reopen the last result.
-        demo.load(
-            restore_chat_from_browser,
-            inputs=[chat_store, app_state],
-            outputs=[app_state, chatbot],
-            queue=False,
-        ).then(
-            None, js=_CHAT_ACTION_JS, queue=False,
-        ).then(
-            restore_result_from_browser,
-            inputs=[result_store, app_state],
-            outputs=[app_state, result_panel, report_display, sources_display,
-                     progress_display, extracts_display, pipeline_run_display],
-            queue=False,
-        )
+        if storage_secret:
+            demo.load(
+                restore_chat_from_browser,
+                inputs=[chat_store, app_state],
+                outputs=[app_state, chatbot],
+                queue=False,
+            ).then(
+                None, js=_CHAT_ACTION_JS, queue=False,
+            ).then(
+                restore_result_from_browser,
+                inputs=[result_store, app_state],
+                outputs=[app_state, result_panel, report_display, sources_display,
+                         progress_display, extracts_display, pipeline_run_display],
+                queue=False,
+            )
 
         # Auto Dark-Mode + Paste-Interceptor
         demo.load(

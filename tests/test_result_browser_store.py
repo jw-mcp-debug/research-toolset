@@ -5,6 +5,7 @@ Only finished text is stored: the tabs as shown, the pipeline-run view
 and the report as exported. The snapshot is written once per result,
 stays below the size limit, and a restored result exports to Markdown
 unchanged and to Word with sources and extracts as appendices.
+Without BROWSER_STORAGE_SECRET nothing is stored.
 """
 
 import json
@@ -19,6 +20,16 @@ from src.pipeline.models import HarvestContext, OutputSchema
 from src.ui import gradio_app as ga
 
 SKIP = gr.skip()
+
+_ENV = patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": "test-secret"})
+
+
+def setUpModule():
+    _ENV.start()
+
+
+def tearDownModule():
+    _ENV.stop()
 
 
 BIBTEX = ("% Header\n% 2 entries\n\n"
@@ -111,6 +122,16 @@ class TestSaveResult(_NoReadyState):
         _, snap = _save(st, report=big, extracts=big)
         self.assertLessEqual(ga._json_size(snap), ga.RESULT_STORE_MAX_BYTES)
         self.assertIn("report", snap["truncated"])
+
+
+class TestOptIn(_NoReadyState):
+    def test_nothing_saved_without_secret(self):
+        st = _state(_ctx())
+        with patch.dict("os.environ", {"BROWSER_STORAGE_SECRET": ""}), \
+                patch.object(ga, "build_result_snapshot") as build:
+            self.assertEqual(_save(st), (SKIP, SKIP))
+        build.assert_not_called()
+        self.assertIsNone(st.browser_result_ctx)
 
 
 class TestRestoreResult(_NoReadyState):
