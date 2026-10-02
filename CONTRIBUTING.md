@@ -28,7 +28,11 @@ replaced by test doubles. Both commands also run in CI for every pull request.
 - **Language.** Code, comments, docstrings, commit messages and documentation
   are English. Text that ends up in reports belongs in the output catalogs
   (`src/locales/en.toml`, plus `de.toml` if you can); see
-  [output languages](docs/output-languages.md). The user interface is English.
+  [output languages](docs/output-languages.md). Interface text is English in
+  the code and wrapped in `tr()`, with the German translation in
+  `src/ui/locales/de.toml`; `tests/test_ui_i18n.py` fails for texts without
+  a translation and for entries the code no longer uses. See
+  [interface languages](docs/output-languages.md#interface-languages).
 - **Prompts** are English. A prompt whose output reaches the report must end
   with `prompt_language_line(...)` so that the model writes in the selected
   output language.
