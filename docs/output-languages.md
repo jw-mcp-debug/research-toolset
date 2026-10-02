@@ -102,9 +102,11 @@ DEFAULT_UI_LANGUAGE=de    # language of the start page (default: en)
 - A missing entry shows the English text. Placeholders must match the
   English key; a mismatch stops the start with a message naming the key.
 - Switching the language loads the other page: a chat stored in the browser
-  comes along, a running research stays on the page where it was started.
-- `tests/test_ui_i18n.py` fails when a text in the code has no German entry
-  or the catalog holds entries the code no longer uses.
+  (with `BROWSER_STORAGE_SECRET` set) comes along, a running research stays
+  on the page where it was started.
+- `tests/test_ui_i18n.py` warns when a text in the code has no German entry
+  (it then shows in English) and fails when the catalog holds entries the
+  code no longer uses.
 
 The chat assistant's system prompt exists in both languages
 (`src/prompts/research.py`); the clickable action phrases are recognised
