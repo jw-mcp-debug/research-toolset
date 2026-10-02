@@ -213,28 +213,28 @@ def choice_label(choices, value: str) -> str:
 
 # Stable choice codes of the analysis forms: (label shown, value stored).
 EXPLAINER_LENGTHS = [
-    ("kurz (ca. 3.000 Wörter)", "short"),
-    ("mittel (ca. 8.000 Wörter)", "medium"),
-    ("ausführlich (ca. 15.000 Wörter)", "detailed"),
+    ("short (about 3,000 words)", "short"),
+    ("medium (about 8,000 words)", "medium"),
+    ("detailed (about 15,000 words)", "detailed"),
 ]
 EXPLAINER_PURPOSES = [
-    ("Selbststudium", "self_study"),
-    ("Vorbereitung von Lehre", "teaching"),
-    ("Entscheidungsunterstützung", "decision_support"),
-    ("Allgemeines Verständnis", "general_understanding"),
+    ("Self-study", "self_study"),
+    ("Teaching preparation", "teaching"),
+    ("Decision support", "decision_support"),
+    ("General understanding", "general_understanding"),
 ]
 REVIEW_FOCUS = [
-    ("Methodik", "methodology"),
-    ("Theorie", "theory"),
-    ("Empirische Evidenz", "empirical"),
+    ("Methodology", "methodology"),
+    ("Theory", "theory"),
+    ("Empirical evidence", "empirical"),
     ("Argumentation", "argumentation"),
-    ("Vollständiges Review", "full"),
+    ("Complete review", "full"),
 ]
 DESIGN_PREFERENCES = [
-    ("Quantitativ", "quantitative"),
-    ("Qualitativ", "qualitative"),
-    ("Mixed Methods", "mixed_methods"),
-    ("Noch offen", "open"),
+    ("Quantitative", "quantitative"),
+    ("Qualitative", "qualitative"),
+    ("Mixed methods", "mixed_methods"),
+    ("Still open", "open"),
 ]
 
 
@@ -280,15 +280,18 @@ class PreflightChecker:
             (ok, errors). With `ok=True` errors is empty; with `ok=False`
             errors contains human-readable descriptions of all violations.
         """
+        from src.ui.i18n import tr  # messages are shown in the interface
+
         errors: list[str] = []
         for req in self._requirements:
+            label = tr(req.label)
             value = inputs.get(req.field)
             # Treat empty strings as "missing"
             is_empty = value is None or (
                 isinstance(value, str) and not value.strip()
             )
             if req.required and is_empty:
-                errors.append(f"Feld „{req.label}“ ist ein Pflichtfeld")
+                errors.append(tr("Field “{label}” is required", label=label))
                 continue
             if is_empty:
                 continue  # optional + empty → OK
@@ -296,21 +299,22 @@ class PreflightChecker:
             if req.kind == "choice" and req.choices:
                 if value not in choice_values(req.choices):
                     errors.append(
-                        f"„{req.label}“: Wert {value!r} gehört nicht zu den "
-                        f"erlaubten Optionen {choice_values(req.choices)}"
+                        tr("“{label}”: value {value} is not one of the "
+                           "allowed options {options}", label=label,
+                           value=repr(value), options=choice_values(req.choices))
                     )
             # Length validation
             if (req.min_length is not None and isinstance(value, str)
                     and len(value.strip()) < req.min_length):
                 errors.append(
-                    f"„{req.label}“: mindestens {req.min_length} Zeichen "
-                    f"(derzeit {len(value.strip())})"
+                    tr("“{label}”: at least {min} characters (currently {n})",
+                       label=label, min=req.min_length, n=len(value.strip()))
                 )
             if req.max_length is not None and isinstance(value, str):
                 if len(value) > req.max_length:
                     errors.append(
-                        f"„{req.label}“: höchstens {req.max_length} Zeichen "
-                        f"(derzeit {len(value)})"
+                        tr("“{label}”: at most {max} characters (currently {n})",
+                           label=label, max=req.max_length, n=len(value))
                     )
         return (not errors, errors)
 
@@ -330,21 +334,21 @@ class PreflightChecker:
 def _explainer_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="topic", label="Thema",
-            placeholder="z. B. Wie funktioniert Reinforcement Learning?",
+            field="topic", label="Topic",
+            placeholder="e.g. How does reinforcement learning work?",
             min_length=10, max_length=500,
         ),
         Requirement(
-            field="audience", label="Zielgruppe",
-            placeholder="z. B. Informatik-Studierende im Bachelor, ohne ML-Vorkenntnisse",
+            field="audience", label="Audience",
+            placeholder="e.g. computer science undergraduates, no prior ML knowledge",
             min_length=15, max_length=300,
         ),
         Requirement(
-            field="length", label="Umfang",
+            field="length", label="Length",
             kind="choice", choices=EXPLAINER_LENGTHS,
         ),
         Requirement(
-            field="purpose", label="Zweck",
+            field="purpose", label="Purpose",
             kind="choice", choices=EXPLAINER_PURPOSES, required=False,
         ),
     ])
@@ -353,15 +357,15 @@ def _explainer_checker() -> PreflightChecker:
 def _peer_review_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="manuscript_summary", label="Zusammenfassung des Manuskripts",
+            field="manuscript_summary", label="Manuscript summary",
             kind="textarea", max_length=3000,
         ),
         Requirement(
-            field="discipline", label="Fachgebiet",
-            placeholder="z. B. Soziologie, Informatik, Biologie",
+            field="discipline", label="Discipline",
+            placeholder="e.g. sociology, computer science, biology",
         ),
         Requirement(
-            field="review_focus", label="Review-Fokus",
+            field="review_focus", label="Review focus",
             kind="choice",
             choices=REVIEW_FOCUS,
         ),
@@ -371,21 +375,21 @@ def _peer_review_checker() -> PreflightChecker:
 def _decision_analysis_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="decision", label="Entscheidung",
+            field="decision", label="Decision",
             kind="textarea",
-            placeholder="Was muss entschieden werden?",
+            placeholder="What needs to be decided?",
             max_length=1500,
         ),
         Requirement(
-            field="options", label="Optionen",
+            field="options", label="Options",
             kind="textarea",
-            placeholder="Optionen, eine pro Zeile",
+            placeholder="Options, one per line",
             max_length=2000,
         ),
         Requirement(
-            field="criteria", label="Bewertungskriterien",
+            field="criteria", label="Assessment criteria",
             kind="textarea",
-            placeholder="Kriterien, eines pro Zeile",
+            placeholder="Criteria, one per line",
             required=False, max_length=2000,
         ),
     ])
@@ -394,19 +398,19 @@ def _decision_analysis_checker() -> PreflightChecker:
 def _grant_proposal_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="research_question", label="Forschungsfrage",
+            field="research_question", label="Research question",
             kind="textarea", max_length=1500,
         ),
         Requirement(
-            field="funder", label="Fördermittelgeber",
-            placeholder="z. B. DFG, BMBF, EU Horizon Europe",
+            field="funder", label="Funder",
+            placeholder="e.g. a national research foundation, EU Horizon",
         ),
         Requirement(
-            field="duration", label="Projektlaufzeit",
-            placeholder="z. B. 36 Monate",
+            field="duration", label="Project duration",
+            placeholder="e.g. 36 months",
         ),
         Requirement(
-            field="discipline", label="Fachgebiet",
+            field="discipline", label="Discipline",
             required=False,
         ),
     ])
@@ -415,21 +419,21 @@ def _grant_proposal_checker() -> PreflightChecker:
 def _literature_review_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="topic", label="Thema des Reviews",
+            field="topic", label="Review topic",
             kind="textarea", max_length=1500,
         ),
         Requirement(
-            field="discipline", label="Fachgebiet",
+            field="discipline", label="Discipline",
         ),
         Requirement(
-            field="time_window", label="Zeitraum",
-            placeholder="z. B. 2015–2025",
+            field="time_window", label="Time window",
+            placeholder="e.g. 2015-2025",
             required=False,
         ),
         Requirement(
-            field="key_questions", label="Leitfragen",
+            field="key_questions", label="Key questions",
             kind="textarea",
-            placeholder="Eine Frage pro Zeile",
+            placeholder="One question per line",
             required=False, max_length=2000,
         ),
     ])
@@ -438,14 +442,14 @@ def _literature_review_checker() -> PreflightChecker:
 def _research_design_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="research_question", label="Forschungsfrage",
+            field="research_question", label="Research question",
             kind="textarea", max_length=1500,
         ),
         Requirement(
-            field="discipline", label="Fachgebiet",
+            field="discipline", label="Discipline",
         ),
         Requirement(
-            field="design_preference", label="Bevorzugtes Design",
+            field="design_preference", label="Design preference",
             kind="choice",
             choices=DESIGN_PREFERENCES,
             required=False,
@@ -456,16 +460,16 @@ def _research_design_checker() -> PreflightChecker:
 def _literature_finder_checker() -> PreflightChecker:
     return PreflightChecker([
         Requirement(
-            field="topic", label="Suchthema",
+            field="topic", label="Search topic",
             kind="textarea", max_length=1500,
         ),
         Requirement(
-            field="discipline", label="Fachgebiet",
+            field="discipline", label="Discipline",
             required=False,
         ),
         Requirement(
-            field="time_window", label="Zeitraum",
-            placeholder="z. B. 2020–2025",
+            field="time_window", label="Time window",
+            placeholder="e.g. 2020-2025",
             required=False,
         ),
     ])

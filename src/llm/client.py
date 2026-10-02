@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # The placeholder that `_process_think_tags` emits while a <think> block
 # is still open. It is display, never content — hence defined once
 # for all places that emit or remove it.
-THINKING_PLACEHOLDER = "🤔 *Denke nach ...*"
+THINKING_PLACEHOLDER = "🤔 *Thinking...*"
 # Recognises the placeholder in any wording (the emoji and the italic
 # span are the fixed part), so changing or translating the text above
 # cannot break the clean-up.

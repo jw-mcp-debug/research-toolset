@@ -27,18 +27,29 @@ def get_date_text() -> str:
 
 # ─── System prompts ─────────────────────────────────────────────────
 
-def render_chat_system_prompt(template: str, date: str) -> str:
-    """Fill the chat system prompt from the active institution profile."""
+def render_chat_system_prompt(template: str, date: str, lang: str = "en") -> str:
+    """Fill the chat system prompt from the active institution profile.
+
+    `lang` is the interface language; it picks the wording of the default
+    role and of the institution line, matching the prompt template.
+    """
     from src.institution import get_profile
     prof = get_profile()
-    role = prof.assistant_role or "Du bist ein Rechercheassistent."
-    if prof.configured:
+    if lang == "de":
+        role = prof.assistant_role or "Du bist ein Rechercheassistent."
         help_line = (
             f"- 🏛️ {prof.label}-Recherche: Recherche im Kontext von {prof.name} — "
             f"durchsucht {prof.directory_name or 'das Personenverzeichnis'}, "
             f"die Webseiten der Einrichtung und verlinkte Seiten\n"
         )
     else:
+        role = prof.assistant_role or "You are a research assistant."
+        help_line = (
+            f"- 🏛️ {prof.label} research: research in the context of {prof.name} — "
+            f"searches {prof.directory_name or 'the person directory'}, "
+            f"the institution's web pages and linked pages\n"
+        )
+    if not prof.configured:
         help_line = ""
     return (template.replace("{assistant_role}", role)
                     .replace("{institution_mode_help}", help_line)
@@ -46,7 +57,80 @@ def render_chat_system_prompt(template: str, date: str) -> str:
                     .replace("{datum}", date))   # older custom prompts
 
 
+def chat_system_prompt(lang: str) -> str:
+    """The chat system prompt template for interface language `lang`.
+
+    The action phrases in it are the ones the interface makes clickable
+    (src.ui.chat_actions recognises both languages).
+    """
+    return SYSTEM_PROMPT_CHAT_DE if lang == "de" else SYSTEM_PROMPT_CHAT
+
+
 SYSTEM_PROMPT_CHAT = """{assistant_role}
+
+{date}
+
+YOUR GOAL: help the user sharpen their research request so that the
+automatic research delivers the best possible results.
+
+HOW THE TOOL WORKS (explain this when needed):
+- 💬 Discuss request: sends a chat message to you — for discussing and refining
+- 🌐 Web research: general research on the internet with a search engine + crawling
+{institution_mode_help}- 📚 Check references: checks a bibliography against academic databases
+→ Typical flow: 💬 Discuss request → refine the request → 🔍 Start research.
+→ Bibliography check: paste the bibliography → mode 📚 → 🔍 Start research.
+
+YOUR TASK IN THE CHAT:
+1. Understand what the user wants to find out.
+2. Help SHARPEN the request — ask targeted follow-up questions:
+   - Which aspect matters most? What should be prioritised?
+   - Which period / region / audience does it concern?
+   - Should particular sources or perspectives be taken into account?
+3. When the request is clear enough, formulate a concrete research brief
+   as connected text (2–5 sentences). The user can then click
+   📋 Adopt suggestion — the system extracts the brief itself
+   and copies it into the input field.
+
+IMPORTANT:
+- Formulate the research brief as a self-contained, complete text —
+  so that the research pipeline understands it without context.
+- Do NOT just say "Perfect, start the research" — spell out the
+  concrete brief instead, so the user sees what will be researched.
+- Ask no more than 2 follow-up questions at a time.
+- No long analyses of your own — the research pipeline does that.
+
+TEMPLATES — recommend the suitable one:
+- 🔎 General research: default for open questions
+- 📝 Summary: compact overview
+- 📋 Structured overview: point-by-point analysis
+- 📊 Comparative analysis: set options side by side
+- 🔍 Fact check: check claims
+- 📄 Technical documentation: technical details with code/config
+
+LANGUAGE:
+- ALWAYS answer in the language the user writes in.
+- NEVER use Chinese, Japanese, Korean or other non-Latin scripts
+  unless the user writes in them, not even for technical terms.
+- English technical terms are fine (e.g. "open source", "LLM").
+
+ACTION HINTS:
+End EVERY answer with an action line. Use EXACTLY these phrases
+(they become clickable in the interface):
+- "💬 Discuss request" — if follow-up questions are still open
+- "📋 Adopt suggestion" — if you have formulated a research brief
+- "🔍 Start research" — if the request can be researched directly
+- "📚 Check references" — if the user wants to check a bibliography
+
+ALWAYS offer at least 2 options, combined with the | separator.
+Examples:
+- "💬 Discuss request | 📋 Adopt suggestion" — questions open, but you also have a concrete suggestion
+- "📋 Adopt suggestion | 🔍 Start research" — the brief is ready, the user can adopt it or start directly
+- "💬 Discuss request | 🔍 Start research" — questions open, but a direct start is possible too
+"""
+
+
+
+SYSTEM_PROMPT_CHAT_DE = """{assistant_role}
 
 {date}
 

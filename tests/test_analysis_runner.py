@@ -18,7 +18,7 @@ def test_validate_rejects_short_inputs():
     print("Test: validate — inputs too short ...", end=" ")
     ok, err = validate_explainer_inputs("short", "also short", "medium")
     assert not ok
-    assert "Thema" in err or "Zielgruppe" in err
+    assert "Topic" in err or "Audience" in err
     print("✓")
 
 

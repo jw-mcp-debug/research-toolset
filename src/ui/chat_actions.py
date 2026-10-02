@@ -38,26 +38,32 @@ class ChatAction:
         return f"({_js_escape(self.emoji)}\\s*(?:{alts}))"
 
 
+# Both interface languages are recognised on every page: a chat restored
+# from the browser may come from the other language's page.
 CHAT_ACTIONS: tuple[ChatAction, ...] = (
-    ChatAction("focus", "💬", "Auftrag besprechen",
-               ("Discuss request", "Discuss further", "Weiter diskutieren", "Besprechen"),
-               "Zum Eingabefeld springen"),
-    ChatAction("adopt", "📋", "Vorschlag übernehmen",
-               ("Adopt suggestion", "Use as request", "Als Auftrag nutzen", "Übernehmen"),
-               "Bereinigten Vorschlag ins Eingabefeld übernehmen"),
-    ChatAction("research", "🔍", "Recherche starten",
-               ("Start research", "Research now", "Jetzt recherchieren"),
-               "Recherche starten"),
-    ChatAction("litcheck", "📚", "Literatur prüfen",
-               ("Check references", "Check bibliography", "Check literature", "Literaturprüfung"),
-               "Literaturverzeichnis prüfen"),
+    ChatAction("focus", "💬", "Discuss request",
+               ("Discuss further", "Auftrag besprechen", "Weiter diskutieren", "Besprechen"),
+               "Focus the input field"),
+    ChatAction("adopt", "📋", "Adopt suggestion",
+               ("Use as request", "Vorschlag übernehmen", "Als Auftrag nutzen", "Übernehmen"),
+               "Copy the cleaned-up suggestion into the input field"),
+    ChatAction("research", "🔍", "Start research",
+               ("Research now", "Recherche starten", "Jetzt recherchieren"),
+               "Start the research"),
+    ChatAction("litcheck", "📚", "Check references",
+               ("Check bibliography", "Check literature", "Literatur prüfen", "Literaturprüfung"),
+               "Check a reference list"),
 )
 
 ACTIONS_BY_NAME = {a.action: a for a in CHAT_ACTIONS}
 
 
 def js_replace_rules() -> str:
-    """JavaScript statements that wrap every action phrase in a link span."""
+    """JavaScript statements that wrap every action phrase in a link span.
+
+    Tooltips are in the current interface language (src.ui.i18n).
+    """
+    from src.ui.i18n import tr
     out = []
     for a in CHAT_ACTIONS:
         out.append(
@@ -66,6 +72,6 @@ def js_replace_rules() -> str:
             "style=\"cursor:pointer;color:var(--primary-500);"
             "text-decoration:underline;font-weight:600\" title=%s>$1</span>');"
             % (json.dumps(a.js_regex(), ensure_ascii=False), a.action,
-               json.dumps(a.title, ensure_ascii=False).replace("'", "\\'"))
+               json.dumps(tr(a.title), ensure_ascii=False).replace("'", "\\'"))
         )
     return "\n                ".join(out)

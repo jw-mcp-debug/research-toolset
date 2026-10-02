@@ -172,7 +172,7 @@ def test_suggest_refuses_on_thin_conversation():
     llm = FakeLLM('{"decision": "geraten"}')
     values, msg = asyncio.run(suggest_preflight_values(
         FakeChecker(), [{"role": "user", "content": "hi"}], llm))
-    assert values == {} and "Gesprächsverlauf" in msg
+    assert values == {} and "conversation" in msg
     assert llm.prompts == [], "do not ask at all with too little history"
 
 
@@ -191,7 +191,7 @@ def test_suggest_handles_llm_error():
 def test_suggest_reports_when_nothing_derivable():
     values, msg = asyncio.run(suggest_preflight_values(
         FakeChecker(), HISTORY, FakeLLM('{"decision": "", "options": ""}')))
-    assert values == {} and "ableiten" in msg
+    assert values == {} and "derived" in msg
 
 
 # ── Autofill on clicking "Start research" ───────────────────
