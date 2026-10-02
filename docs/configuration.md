@@ -69,6 +69,16 @@ continues with the fallback.
 The start-up fails with a clear message if a language has no catalog or a
 catalog is inconsistent. See [output languages](output-languages.md).
 
+## Interface
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `UI_LANGUAGES` | all catalogs | interface languages offered, e.g. `en,de`; catalogs live in `src/ui/locales/` |
+| `DEFAULT_UI_LANGUAGE` | `en` | language of the start page; must be in `UI_LANGUAGES`. The others are served under `/<code>` |
+| `CHAT_STORAGE_SECRET` | random per start | key that encrypts the chat and the last result in the browser's localStorage. Set a fixed random value (`python3 -c "import secrets; print(secrets.token_urlsafe(32))"`), otherwise every restart makes the stored data unreadable |
+
+See [interface languages](output-languages.md#interface-languages).
+
 ## Data and retention
 
 | Variable | Default | Meaning |
